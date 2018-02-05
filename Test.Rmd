@@ -80,4 +80,4 @@ hist(kc_data$floors, main="Distribution of Floors",xlab="Floors", xlim=c(0,5))
   
 The floor histogram is again similar to price. We see the majority of responses on the left, with a few observations at the higher end. However we do not see the same high end outliers like we do in price. The data is closer together. 
 
-There were two aspects about the data that surprised us. The first was 
+There were two aspects about the data that surprised us. The first was the relatively high average grade of the houses. At 3.4 it is well above what would be the pure middle of the 1 to 5 scale at 2.5. We somewhat expected there to me more lower-end quality houses in the dataset, although it's possible that renovated houses were originally at this lower level. Similarly it is possible that lower-end quality houses just don't sell so they don't end up in the dataset. Furthermore the standard deviation and thus variance of lot square footage was a lot higher than we expected. This number could be greatly affected by a few outliers. 
