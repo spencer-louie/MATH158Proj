@@ -15,7 +15,7 @@ kc_data <- read.table("~/MATH158Proj/Project 1/kc_house_data.csv", header=TRUE,
    sep=",")
 data("kc_house_data")
 ```
-This data is from home sales between May 2014 and May 2015 in King County Washington. It includes 21613 observations, each one an individual home sale. The relevant variables are displayed and explained below:  
+The goal of our project is to figure out what factors affect housing prices. This data is from home sales between May 2014 and May 2015 in King County Washington. It includes 21613 observations, each one an individual home sale. The relevant variables are displayed and explained below:  
   
 Price - the sale price of the home.  
 Bedrooms - the number of bedrooms.  
