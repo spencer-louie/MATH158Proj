@@ -5,7 +5,7 @@ output: pdf_document
 ## Nick George and Spencer Louie 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-knitr::opts_chunk$set(fig.width=6, fig.height=4)
+knitr::opts_chunk$set(fig.width=6, fig.height=3)
 require(openintro)
 require(dplyr)
 require(broom)
@@ -77,5 +77,7 @@ The distribution of living square footage, that is square footage of house itsel
 ```{r, echo=FALSE}
 hist(kc_data$floors, main="Distribution of Floors",xlab="Floors", xlim=c(0,5))
 ```
+  
+The floor histogram is again similar to price. We see the majority of responses on the left, with a few observations at the higher end. However we do not see the same high end outliers like we do in price. The data is closer together. 
 
-
+There were two aspects about the data that surprised us. The first was 
