@@ -14,6 +14,8 @@ require(skimr)
 kc_data <- read.table("~/MATH158Proj/Project 1/kc_house_data.csv", header=TRUE,
    sep=",")
 data("kc_house_data")
+kc_data <- kc_data %>% mutate(bedbath = bedrooms + bathrooms)
+
 ```
 The goal of our project is to figure out what factors affect housing prices. This data is from home sales between May 2014 and May 2015 in King County Washington. It includes 21613 observations, each one an individual home sale. The relevant variables are displayed and explained below:  
   
@@ -25,7 +27,7 @@ Sqft_lot - square footage of the lot.
 Floors - the number of floors in the house.
 Waterfront - 0 or 1 depending on if the house has a waterfront view or not.  
 Condition - condition of the house 1 to 5.   
-Grade - grade given to house based on King County grading system 1 - 10.   
+Grade - grade given to house based on King County grading system 1 - 13.   
 Yr-built - year the house was built.  
 Yr-renovated - year the house was renovated if applicable. 0 if not renovated. - Could be treated as a dummy variable for renovations in the future.   
 Zipcode - the zipcode of the house sale. Could be converted into categorical areas for analysis.   
@@ -78,9 +80,22 @@ The distribution of living square footage, that is square footage of house itsel
 hist(kc_data$floors, main="Distribution of Floors",xlab="Floors", xlim=c(0,5))
 ```
   
-The floor histogram is again similar to price. We see the majority of responses on the left, with a few observations at the higher end. However we do not see the same high end outliers like we do in price. The data is closer together. 
+The floor histogram is again similar to price. We see the majority of responses on the left, with a few observations at the higher end. However we do not see the same high end outliers like we do in price. The data is closer together.
 
-There were two aspects about the data that surprised us. The first was the relatively high average grade of the houses. At 3.4 it is well above what would be the pure middle of the 1 to 5 scale at 2.5. We somewhat expected there to me more lower-end quality houses in the dataset, although it's possible that renovated houses were originally at this lower level. Similarly it is possible that lower-end quality houses just don't sell so they don't end up in the dataset. Furthermore the standard deviation and thus variance of lot square footage was a lot higher than we expected. This number could be greatly affected by a few outliers.  
+```{r, echo=FALSE}
+plot(kc_data$grade, kc_data$price, main="Scatterplot of Price and Grade", ylab= "Price",xlab = "Grade")
+abline(lm(kc_data$price~kc_data$grade))
+
+```
+Looking at the relationship between price and grade, we see a clear relationship between the grade of the house (based on King County grading system) and the price. As the grade increases, so does the price. The line on the graph is the line of best fit showing this relationship.
+
+```{r, echo=FALSE}
+plot(kc_data$bedbath, kc_data$price, main="Scatterplot of Price and Bed/Baths", ylab= "Price",xlab = "Bedrooms + Bathrooms")
+
+```
+A scatterplot of bedrooms + bathrooms and price shows another expected relationship. As the number of bed/baths increases, the price seems to increase as well.  
+
+There were two aspects about the data that surprised us. The first was the relatively high average grade of the houses. At 3.4 it is well above what would be the pure middle of the 1 to 5 scale at 2.5. We somewhat expected there to me more lower-end quality houses in the dataset, although it's possible that renovated houses were originally at this lower level. Similarly it is possible that lower-end quality houses just don't sell so they don't end up in the dataset. Furthermore the standard deviation and thus variance of lot square footage was a lot higher than we expected. This number could be greatly affected by a few outliers. Some observations are   
 
 Our github repository is https://github.com/spencer-louie/MATH158Proj. 
 
