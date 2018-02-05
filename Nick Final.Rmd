@@ -11,7 +11,7 @@ require(dplyr)
 require(broom)
 require(ggplot2)
 require(skimr)
-kc_data <- read.table("~/MATH158Proj/kc_house_data.csv", header=TRUE,
+kc_data <- read.table("~/MATH158Proj/Project 1/kc_house_data.csv", header=TRUE,
    sep=",")
 data("kc_house_data")
 ```
