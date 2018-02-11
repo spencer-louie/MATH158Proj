@@ -100,3 +100,22 @@ The p-value is roughly 0 and the t-stastic is quite large at $134/2 = 67$ so we 
 plot(log(kc_data$price),log(kc_data$sqft_living),ylab="Price",xlab="Living Sqft")
 ```
 
+
+```{r}
+sqft_living_1200 = data.frame(sqft_living = 1200)
+predict(kc.lm, sqft_living_1200, interval="predict")
+
+```
+This is a prediction interval for 1200 square feet of living space. So 95% of the log price values are between 11.9 and 13.42. 
+
+```{r}
+predict(kc.lm, sqft_living_1200, interval="confidence")
+```
+This is a confidence or mean interval for 1200 square feet of living space. We are 95% confident that the mean log price value for 1200 square feet of living space is between 12.65 and 12.67. 
+
+```{r}
+summary(kc.lm)
+
+```
+
+The R squared of the model is .4555 which means that about 45% of the variance in log price is explained by log living square footage. 
