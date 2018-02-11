@@ -91,6 +91,7 @@ kc.lm <- lm(log(price)~log(sqft_living), data=kc_data)
 kc.resid <- resid(kc.lm)
 kc.hat <- fitted(kc.lm)
 plot(kc.hat, kc.resid, ylab="Residuals", xlab="Fitted Values", main="Housing Prices")
+ggplot(kc_data, aes(x=kc.hat, y=kc.resid)) + geom_boxplot(aes(group=cut_width(kc.hat, .5)))
 tidy(kc.lm)
 ```
 By taking log-log transformations of our data we were able to get a residual plot that seems to satisfy some of our necessary assumptions. The residuals appear to be fairly equally distributed positively and negatively and the variance seems to be constant across the fitted values. 
@@ -98,6 +99,7 @@ By taking log-log transformations of our data we were able to get a residual plo
 The p-value is roughly 0 and the t-stastic is quite large at $134/2 = 67$ so we are able to reject the null hypothesis and say that there is some positive relation between housing price and living square footage. This implies that a doubling in square footage would be associated with a $2^.836 = 1.786$ multiplicate change in the median of price. 
 ```{r}
 plot(log(kc_data$price),log(kc_data$sqft_living),ylab="Price",xlab="Living Sqft")
+ggplot(kc_data, aes(x=log(sqft_living), y=log(price))) + geom_boxplot(aes(group=cut_width(log(sqft_living), .5)))
 ```
 
 
@@ -119,3 +121,10 @@ summary(kc.lm)
 ```
 
 The R squared of the model is .4555 which means that about 45% of the variance in log price is explained by log living square footage. 
+
+```{r, echo=FALSE}
+temp_predict <- predict(kc.lm, interval="predict")
+new_kc_data <- cbind(kc_data,temp_predict)
+ggplot(new_kc_data, aes(log(sqft_living),log(price)))+ geom_boxplot(aes(group=cut_width(log(sqft_living), .5))) +geom_line(aes(y=lwr),color="red",linetype="dashed")+geom_line(aes(y=upr), color="red", linetype="dashed") + geom_smooth(method=lm, se=TRUE, level=.95) ## Can't get a band for confidence interval to show up even though the code is correct. 
+```
+
