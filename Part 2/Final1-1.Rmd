@@ -11,7 +11,7 @@ require(dplyr)
 require(broom)
 require(ggplot2)
 require(skimr)
-kc_data <- read.table("~/MATH158Proj/Project 1/kc_house_data.csv", header=TRUE,
+kc_data <- read.table("~/MATH158Proj/Part 1/kc_house_data.csv", header=TRUE,
    sep=",")
 data("kc_house_data")
 kc_data <- kc_data %>% mutate(bedbath = bedrooms + bathrooms)
@@ -28,7 +28,9 @@ kc.resid <- rstandard(kc.lm)
 kc.hat <- fitted(kc.lm)
 ggplot(kc_data, aes(x=kc.hat, y=kc.resid)) + geom_boxplot(aes(group=cut_width(kc.hat, .5))) + labs(x = "Fitted Values", y = "Std. Residuals", title = "Residual Plot")
 ```
-By taking log-log transformations of our data we were able to get a residual plot that does a decent job of satisfying some of our assumptions and is certainly better than before it was transformed. One of the key reasons we logged both sides was to get something closer to linearity. The residuals appear are somewhat equally distributed positively and negatively. The variance is not perfectly constant, but again significantly better than the pre-transformed data. This implies that our estimates will not be as efficient as they could be. If we were to take out some of the outliers, by potentially narrowing the focus of our study, we may be able to get a residuals that better fit the assumptions.
+
+
+The residuals of a non-transformed regression equation seems to have a non-constant variance in the resiudals. (Omitted for space concerns) By taking log-log transformations of our data we were able to get a residual plot that does a decent job of satisfying some of our assumptions and is certainly better than before it was transformed. One of the key reasons we logged both sides was to get something closer to linearity. The residuals appear are somewhat equally distributed positively and negatively. The variance is not perfectly constant, but again significantly better than the pre-transformed data. This implies that our estimates will not be as efficient as they could be. If we were to take out some of the outliers, by potentially narrowing the focus of our study, we may be able to get a residuals that better fit the assumptions.
 
 ```{r, echo=FALSE}
 tidy(kc.lm) %>% kable()
