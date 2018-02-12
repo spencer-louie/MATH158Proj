@@ -31,7 +31,7 @@ ggplot(kc_data, aes(x=kc.hat, y=kc.resid)) + geom_boxplot(aes(group=cut_width(kc
 By taking log-log transformations of our data we were able to get a residual plot that does a decent job of satisfying some of our assumptions and is certainly better than before it was transformed. One of the key reasons we logged both sides was to get something closer to linearity. The residuals appear are somewhat equally distributed positively and negatively. The variance is not perfectly constant, but again significantly better than the pre-transformed data. This implies that our estimates will not be as efficient as they could be. If we were to take out some of the outliers, by potentially narrowing the focus of our study, we may be able to get a residuals that better fit the assumptions.
 
 ```{r, echo=FALSE}
-tidy(kc.lm)
+tidy(kc.lm) %>% kable()
 ```
 
 The p-value is roughly 0 and the t-stastic is quite large at $134/2 = 67$ so we are able to reject the null hypothesis and say that there is some positive relation between housing price and living square footage. This implies that a doubling in square footage would be associated with a $2^.836 = 1.786$ multiplicative change in the median of price. 
@@ -43,8 +43,7 @@ ggplot(kc_data, aes(x=log(sqft_living), y=log(price))) + geom_boxplot(aes(group=
 
 ```{r, echo=FALSE}
 sqft_living_1200 = data.frame(sqft_living = 1200)
-predict(kc.lm, sqft_living_1200, interval="predict")
-
+predict(kc.lm, sqft_living_1200, interval="predict") 
 ```
 This is a prediction interval for 1200 square feet of living space. So 95% of the log price values are between 11.9 and 13.42. 
 
@@ -109,7 +108,9 @@ kc_pred_WH %>% head()
 ggplot(kc_pred_WH, aes(x = log.sqft_living., y= log.price.)) + geom_boxplot(aes(group=cut_width(log.sqft_living., .5))) + stat_smooth(method="lm", se=FALSE) + geom_ribbon(aes(ymin = lower_PI, ymax= upper_PI), alpha=.2) + geom_ribbon(data = kc_pred_WH, aes(ymin = lower_CI, ymax= upper_CI), alpha = .2, fill= "red") + labs(x="Living Sq. Footage", y="Price", title="Price vs. Living Sq. Footage (Working-Hotelling Bands)", subtitle="Note: The natural log has been take of both variabes.")
 ```
 
-Note that in the three graphs above there is a band for the confidence interval included, however it is so thin that it is pratically impossible to see. As evident from the size of the p-value and the confidence interval for living sq. footage = 1200 shown above the confidence interval would indeed be quite small. 
+Note that in the three graphs above, the gray band is the prediction interval. There is also a band for the confidence interval included, however it is so thin that it is pratically impossible to see. As evident from the size of the p-value and the confidence interval for living sq. footage = 1200 shown above the confidence interval would indeed be quite small. 
+
+Adjusting for multiple comparisons is important because confidence intervals aren't a guarantee. The true value we are interested in is not necessarily in the interval we select. By doing multiple different versions, here we have three, we give ourselves a better opportunity to capture the true value. Furthermore when you are looking at a large number differences you run into the probelm of multiple comparisons. When observations differ by a number of factors then our discovery may be seem stronger than it should. Therefore we adjust so that our intervals are more realistic, this is why the bands for both adjusted versions are larger. Since we are only comparing on one dimension the non-adjusted version would probably work out well for us, however if we had to choose between the two adjusted, we would choose the Work-Hotelling / Scheffe versions as it is a tighter band than the other. 
 
 Conclusion:
 Overall our model does support our theory that there is a positive relationship between price and living square footage. However, we did have to transform our variables in order to reach the necessary assumptions for our model to work. There were two things that paritcularly suprised us. One was just how large our R squared was with only one variable. We were able to explain almost half of the variance in log price with log living square footage. We are surprised by that because it doesn't account for quality, only partially for size of the overall lot, and only partially for rooms and floors as well as a number of unquantifiables. The other factor that surprised was the implied magnitude of the effect. A doubling in square footage leads to a less than doubling of median price. In some respects we expected a doubling in square footage to lead to an even higher multiplicative increase in median price. 
