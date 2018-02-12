@@ -3,7 +3,7 @@ title: "Math 158 Final Project: Part 2"
 output: pdf_document
 ---
 ## Nick George and Spencer Louie 
-```{r setup, include=FALSE}
+```{r setup, include=FALSE, echo=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 knitr::opts_chunk$set(fig.width=6, fig.height=3)
 require(openintro)
@@ -20,7 +20,7 @@ kc_data <- kc_data %>% mutate(bedbath = bedrooms + bathrooms)
 
 
 We're interested in testing whether or not theire is a positive relation between housing price and the square footage of living area. So $H_0: \beta_1\leq0$ and $H_a: \beta_1>0$.
-```{r}
+```{r, echo=FALSE}
 kc.lm <- lm(log(price)~log(sqft_living), data=kc_data)
 kc.resid <- resid(kc.lm)
 kc.hat <- fitted(kc.lm)
@@ -31,25 +31,25 @@ tidy(kc.lm)
 By taking log-log transformations of our data we were able to get a residual plot that seems to satisfy some of our necessary assumptions. The residuals appear to be fairly equally distributed positively and negatively and the variance seems to be constant across the fitted values. 
 
 The p-value is roughly 0 and the t-stastic is quite large at $134/2 = 67$ so we are able to reject the null hypothesis and say that there is some positive relation between housing price and living square footage. This implies that a doubling in square footage would be associated with a $2^.836 = 1.786$ multiplicate change in the median of price. 
-```{r}
+```{r, echo=FALSE}
 plot(log(kc_data$price),log(kc_data$sqft_living),ylab="Price",xlab="Living Sqft")
 ggplot(kc_data, aes(x=log(sqft_living), y=log(price))) + geom_boxplot(aes(group=cut_width(log(sqft_living), .5)))
 ```
 
 
-```{r}
+```{r, echo=FALSE}
 sqft_living_1200 = data.frame(sqft_living = 1200)
 predict(kc.lm, sqft_living_1200, interval="predict")
 
 ```
 This is a prediction interval for 1200 square feet of living space. So 95% of the log price values are between 11.9 and 13.42. 
 
-```{r}
+```{r, echo=FALSE}
 predict(kc.lm, sqft_living_1200, interval="confidence")
 ```
 This is a confidence or mean interval for 1200 square feet of living space. We are 95% confident that the mean log price value for 1200 square feet of living space is between 12.65 and 12.67. 
 
-```{r}
+```{r, echo=FALSE}
 summary(kc.lm)
 
 ```
@@ -61,3 +61,35 @@ temp_predict <- predict(kc.lm, interval="predict")
 new_kc_data <- cbind(kc_data,temp_predict)
 ggplot(new_kc_data, aes(log(sqft_living),log(price)))+ geom_boxplot(aes(group=cut_width(log(sqft_living), .5))) +geom_line(aes(y=lwr),color="red",linetype="dashed")+geom_line(aes(y=upr), color="red", linetype="dashed") + geom_smooth(method=lm, se=TRUE, level=.95) ## Can't get a band for confidence interval to show up even though the code is correct. 
 ```
+
+
+```{r}
+
+library(broom)
+crit_val <- qt(.975, glance(kc.lm)$df.resid)
+kc_gl <- broom::glance(kc.lm)
+kc_sig <- dplyr::pull(kc_gl, sigma)
+kc_pred <- broom::augment(kc.lm) %>% mutate(.se.pred = sqrt(kc_sig^2 + .se.fit^2)) %>% mutate(lower_PI = .fitted - crit_val*.se.pred, upper_PI = .fitted + crit_val*.se.pred, lower_CI = .fitted - crit_val*.se.fit, upper_CI = .fitted + crit_val * .se.fit)
+kc_pred %>% head()
+ggplot(kc_pred, aes(x = log.sqft_living., y= log.price.)) + geom_boxplot(aes(group=cut_width(log.sqft_living., .5))) + stat_smooth(method="lm", se=FALSE) + geom_ribbon(aes(ymin = lower_PI, ymax= upper_PI), alpha=.2) + geom_ribbon(data = kc_pred, aes(ymin = lower_CI, ymax= upper_CI), alpha = .2, fill= "red")
+```
+
+```{r}
+num_int <- 3
+crit_Bonf <- qt((1-.975)/num_int, glance(kc.lm)$df.resid)
+crit_WH <- sqrt(2*qf(.95, num_int, glance(kc.lm)$df.resid))
+```
+Bonf - Model
+```{r}
+kc_pred_Bonf <- broom::augment(kc.lm) %>% mutate(.se.pred = sqrt(kc_sig^2 + .se.fit^2)) %>% mutate(lower_PI = .fitted - crit_Bonf*.se.pred, upper_PI = .fitted + crit_Bonf*.se.pred, lower_CI = .fitted - crit_Bonf*.se.fit, upper_CI = .fitted + crit_Bonf * .se.fit)
+kc_pred_Bonf %>% head()
+ggplot(kc_pred_Bonf, aes(x = log.sqft_living., y= log.price.)) + geom_boxplot(aes(group=cut_width(log.sqft_living., .5))) + stat_smooth(method="lm", se=FALSE) + geom_ribbon(aes(ymin = lower_PI, ymax= upper_PI), alpha=.2) + geom_ribbon(data = kc_pred_Bonf, aes(ymin = lower_CI, ymax= upper_CI), alpha = .2, fill= "red")
+
+```
+WH - Model
+```{r}
+kc_pred_WH <- broom::augment(kc.lm) %>% mutate(.se.pred = sqrt(kc_sig^2 + .se.fit^2)) %>% mutate(lower_PI = .fitted - crit_WH*.se.pred, upper_PI = .fitted + crit_WH*.se.pred, lower_CI = .fitted - crit_WH*.se.fit, upper_CI = .fitted + crit_WH * .se.fit)
+kc_pred_WH %>% head()
+ggplot(kc_pred_WH, aes(x = log.sqft_living., y= log.price.)) + geom_boxplot(aes(group=cut_width(log.sqft_living., .5))) + stat_smooth(method="lm", se=FALSE) + geom_ribbon(aes(ymin = lower_PI, ymax= upper_PI), alpha=.2) + geom_ribbon(data = kc_pred_WH, aes(ymin = lower_CI, ymax= upper_CI), alpha = .2, fill= "red")
+```
+
