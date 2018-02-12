@@ -18,22 +18,26 @@ kc_data <- kc_data %>% mutate(bedbath = bedrooms + bathrooms)
 
 ```
 
+Introduction:
 
-We're interested in testing whether or not theire is a positive relation between housing price and the square footage of living area. So $H_0: \beta_1\leq0$ and $H_a: \beta_1>0$.
+Here we'll be running a linear regression on housing prices, specifically from King County Washington. The explanatory variable will be the square footage of living area. While the response variable is the price of the house. 
+We're interested in testing whether or not there is a positive relation between housing price and the square footage of living area. So $H_0: \beta_1\leq0$ and $H_a: \beta_1>0$. Our null hypothesis is that there is a zero or negative relationship and our alternative hypothesis is that there is a positive relationship.
 ```{r, echo=FALSE}
 kc.lm <- lm(log(price)~log(sqft_living), data=kc_data)
-kc.resid <- resid(kc.lm)
+kc.resid <- rstandard(kc.lm)
 kc.hat <- fitted(kc.lm)
-plot(kc.hat, kc.resid, ylab="Residuals", xlab="Fitted Values", main="Housing Prices")
-ggplot(kc_data, aes(x=kc.hat, y=kc.resid)) + geom_boxplot(aes(group=cut_width(kc.hat, .5)))
+ggplot(kc_data, aes(x=kc.hat, y=kc.resid)) + geom_boxplot(aes(group=cut_width(kc.hat, .5))) + labs(x = "Fitted Values", y = "Std. Residuals", title = "Residual Plot")
+```
+By taking log-log transformations of our data we were able to get a residual plot that does a decent job of satisfying some of our assumptions and is certainly better than before it was transformed. One of the key reasons we logged both sides was to get something closer to linearity. The residuals appear are somewhat equally distributed positively and negatively. The variance is not perfectly constant, but again significantly better than the pre-transformed data. This implies that our estimates will not be as efficient as they could be. If we were to take out some of the outliers, by potentially narrowing the focus of our study, we may be able to get a residuals that better fit the assumptions.
+
+```{r, echo=FALSE}
 tidy(kc.lm)
 ```
-By taking log-log transformations of our data we were able to get a residual plot that seems to satisfy some of our necessary assumptions. The residuals appear to be fairly equally distributed positively and negatively and the variance seems to be constant across the fitted values. 
 
-The p-value is roughly 0 and the t-stastic is quite large at $134/2 = 67$ so we are able to reject the null hypothesis and say that there is some positive relation between housing price and living square footage. This implies that a doubling in square footage would be associated with a $2^.836 = 1.786$ multiplicate change in the median of price. 
+The p-value is roughly 0 and the t-stastic is quite large at $134/2 = 67$ so we are able to reject the null hypothesis and say that there is some positive relation between housing price and living square footage. This implies that a doubling in square footage would be associated with a $2^.836 = 1.786$ multiplicative change in the median of price. 
+
 ```{r, echo=FALSE}
-plot(log(kc_data$price),log(kc_data$sqft_living),ylab="Price",xlab="Living Sqft")
-ggplot(kc_data, aes(x=log(sqft_living), y=log(price))) + geom_boxplot(aes(group=cut_width(log(sqft_living), .5)))
+ggplot(kc_data, aes(x=log(sqft_living), y=log(price))) + geom_boxplot(aes(group=cut_width(log(sqft_living), .5))) + labs(x="Living Sq. Footage", y="Price", title="Price vs. Living Sq. Footage", subtitle="Note: The natural log has been take of both variabes.")
 ```
 
 
@@ -54,16 +58,17 @@ summary(kc.lm)
 
 ```
 
-The R squared of the model is .4555 which means that about 45% of the variance in log price is explained by log living square footage. 
+The R squared of the model is .4555 which means that about 45% of the variance in log price is explained by log living square footage. Since we have only used one variable to attempt to explain price, our model has done quite a bit of work. Adding more variables should improve our R squared, allowing us to explain more of the variance in the response variable. 
 
-```{r, echo=FALSE}
+```{r, echo=FALSE, include=FALSE}
+### Don't think we need this. 
 temp_predict <- predict(kc.lm, interval="predict")
 new_kc_data <- cbind(kc_data,temp_predict)
 ggplot(new_kc_data, aes(log(sqft_living),log(price)))+ geom_boxplot(aes(group=cut_width(log(sqft_living), .5))) +geom_line(aes(y=lwr),color="red",linetype="dashed")+geom_line(aes(y=upr), color="red", linetype="dashed") + geom_smooth(method=lm, se=TRUE, level=.95) ## Can't get a band for confidence interval to show up even though the code is correct. 
 ```
 
 
-```{r}
+```{r, echo=FALSE, include=FALSE}
 
 library(broom)
 crit_val <- qt(.975, glance(kc.lm)$df.resid)
@@ -71,25 +76,40 @@ kc_gl <- broom::glance(kc.lm)
 kc_sig <- dplyr::pull(kc_gl, sigma)
 kc_pred <- broom::augment(kc.lm) %>% mutate(.se.pred = sqrt(kc_sig^2 + .se.fit^2)) %>% mutate(lower_PI = .fitted - crit_val*.se.pred, upper_PI = .fitted + crit_val*.se.pred, lower_CI = .fitted - crit_val*.se.fit, upper_CI = .fitted + crit_val * .se.fit)
 kc_pred %>% head()
-ggplot(kc_pred, aes(x = log.sqft_living., y= log.price.)) + geom_boxplot(aes(group=cut_width(log.sqft_living., .5))) + stat_smooth(method="lm", se=FALSE) + geom_ribbon(aes(ymin = lower_PI, ymax= upper_PI), alpha=.2) + geom_ribbon(data = kc_pred, aes(ymin = lower_CI, ymax= upper_CI), alpha = .2, fill= "red")
 ```
 
-```{r}
+```{r, echo=FALSE}
+ggplot(kc_pred, aes(x = log.sqft_living., y= log.price.)) + geom_boxplot(aes(group=cut_width(log.sqft_living., .5))) + stat_smooth(method="lm", se=FALSE) + geom_ribbon(aes(ymin = lower_PI, ymax= upper_PI), alpha=.2) + geom_ribbon(data = kc_pred, aes(ymin = lower_CI, ymax= upper_CI), alpha = .2, fill= "red") + labs(x="Living Sq. Footage", y="Price", title="Price vs. Living Sq. Footage (Non-Adj. Bands)", subtitle="Note: The natural log has been take of both variabes.")
+```
+
+```{r, echo=FALSE, include=FALSE}
 num_int <- 3
 crit_Bonf <- qt((1-.975)/num_int, glance(kc.lm)$df.resid)
 crit_WH <- sqrt(2*qf(.95, num_int, glance(kc.lm)$df.resid))
 ```
-Bonf - Model
-```{r}
+
+```{r echo=FALSE, include=FALSE}
+## Bonf - Model
 kc_pred_Bonf <- broom::augment(kc.lm) %>% mutate(.se.pred = sqrt(kc_sig^2 + .se.fit^2)) %>% mutate(lower_PI = .fitted - crit_Bonf*.se.pred, upper_PI = .fitted + crit_Bonf*.se.pred, lower_CI = .fitted - crit_Bonf*.se.fit, upper_CI = .fitted + crit_Bonf * .se.fit)
 kc_pred_Bonf %>% head()
-ggplot(kc_pred_Bonf, aes(x = log.sqft_living., y= log.price.)) + geom_boxplot(aes(group=cut_width(log.sqft_living., .5))) + stat_smooth(method="lm", se=FALSE) + geom_ribbon(aes(ymin = lower_PI, ymax= upper_PI), alpha=.2) + geom_ribbon(data = kc_pred_Bonf, aes(ymin = lower_CI, ymax= upper_CI), alpha = .2, fill= "red")
+```
+
+```{r, echo=FALSE}
+ggplot(kc_pred_Bonf, aes(x = log.sqft_living., y= log.price.)) + geom_boxplot(aes(group=cut_width(log.sqft_living., .5))) + stat_smooth(method="lm", se=FALSE) + geom_ribbon(aes(ymin = lower_PI, ymax= upper_PI), alpha=.2) + geom_ribbon(data = kc_pred_Bonf, aes(ymin = lower_CI, ymax= upper_CI), alpha = .2, fill= "red") + labs(x="Living Sq. Footage", y="Price", title="Price vs. Living Sq. Footage (Bonferonni Bands)", subtitle="Note: The natural log has been take of both variabes.")
 
 ```
-WH - Model
-```{r}
+
+```{r, echo=FALSE, include= FALSE}
+## WH - Model
 kc_pred_WH <- broom::augment(kc.lm) %>% mutate(.se.pred = sqrt(kc_sig^2 + .se.fit^2)) %>% mutate(lower_PI = .fitted - crit_WH*.se.pred, upper_PI = .fitted + crit_WH*.se.pred, lower_CI = .fitted - crit_WH*.se.fit, upper_CI = .fitted + crit_WH * .se.fit)
 kc_pred_WH %>% head()
-ggplot(kc_pred_WH, aes(x = log.sqft_living., y= log.price.)) + geom_boxplot(aes(group=cut_width(log.sqft_living., .5))) + stat_smooth(method="lm", se=FALSE) + geom_ribbon(aes(ymin = lower_PI, ymax= upper_PI), alpha=.2) + geom_ribbon(data = kc_pred_WH, aes(ymin = lower_CI, ymax= upper_CI), alpha = .2, fill= "red")
 ```
 
+```{r, echo=FALSE}
+ggplot(kc_pred_WH, aes(x = log.sqft_living., y= log.price.)) + geom_boxplot(aes(group=cut_width(log.sqft_living., .5))) + stat_smooth(method="lm", se=FALSE) + geom_ribbon(aes(ymin = lower_PI, ymax= upper_PI), alpha=.2) + geom_ribbon(data = kc_pred_WH, aes(ymin = lower_CI, ymax= upper_CI), alpha = .2, fill= "red") + labs(x="Living Sq. Footage", y="Price", title="Price vs. Living Sq. Footage (Working-Hotelling Bands)", subtitle="Note: The natural log has been take of both variabes.")
+```
+
+Note that in the three graphs above there is a band for the confidence interval included, however it is so thin that it is pratically impossible to see. As evident from the size of the p-value and the confidence interval for living sq. footage = 1200 shown above the confidence interval would indeed be quite small. 
+
+Conclusion:
+Overall our model does support our theory that there is a positive relationship between price and living square footage. However, we did have to transform our variables in order to reach the necessary assumptions for our model to work. There were two things that paritcularly suprised us. One was just how large our R squared was with only one variable. We were able to explain almost half of the variance in log price with log living square footage. We are surprised by that because it doesn't account for quality, only partially for size of the overall lot, and only partially for rooms and floors as well as a number of unquantifiables. The other factor that surprised was the implied magnitude of the effect. A doubling in square footage leads to a less than doubling of median price. In some respects we expected a doubling in square footage to lead to an even higher multiplicative increase in median price. 
