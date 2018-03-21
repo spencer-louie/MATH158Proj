@@ -38,9 +38,9 @@ kc_data_3 <- subset(kc_data_2, select = c(lprice, grade, lsqft_living, view, con
 kc_data_3.matrix <- data.matrix(kc_data_3)
 round(cor(kc_data_3.matrix), 2)
 ```
-```{r, echo=FALSE, include=FALSE}
-pairs(kc_data_3) #I have this on include=FALSE because there are ton of graphs so it really slow everything down to use. 
-```
+
+[pairs(kc_data_3) The graphs really slow things down so I don't have them included for ease of processing right now.]
+
 
 
 The trouble explanatory variables with high correlation are: grade and lsqft_living as well as lsqft_living and bedbath. lsqft_living and lqft_lot are surprisingly not particularly problematic.  
@@ -87,7 +87,35 @@ kc_2.hatvalues.data <- data.frame(kc_2.hatvalues)
 ```{r, echo=FALSE}
 dffits.kc.data = data.frame(dffits(kc_2.lm), dfbetas(kc_2.lm), cooks.distance(kc_2.lm))
 dffits.kc.data_2 = dffits.kc.data[c(15871),]
-kable(cbind(dffits.kc.data_2), align = "c")
+```
+```{r, echo=FALSE}
+names(dffits.kc.data_2) <- c("DFFITS", "Intercept", "Grade", "lsq_liv", "View", "Condition", "lsq_lot", "Waterfront", "BedBath", "Floors", "Cook's")
+kable(round(dffits.kc.data_2, 2), align = "c")
 ```
 
+  
+```{r, echo=FALSE}
+plot(cooks.distance(kc_2.lm))
+```
+  
+The only Cook's Distance that's significantly higher than the rest is at obesrvation 15871, but even that is still drasticly below 1. Overall it does not seem that any outlier is going to be problematic and so we do not need to look at data that excludes some points. 
+
+
+
+
+
+
+
+Partial Coefficent of Determination:
+```{r, echo=FALSE}
+library(rsq) #Will likely need to install this package. 
+rsq.partial(kc_2.lm, lm(log(price) ~ log(sqft_lot) + floors + waterfront + view + condition + grade + bedbath, data=kc_data), adj=FALSE, type=c("v"))$partial.rsq
+rsq.partial(kc_2.lm, lm(log(price) ~ (log(sqft_living) + floors + waterfront + view + condition + grade + bedbath), data=kc_data), adj=FALSE, type=c("v"))$partial.rsq
+rsq.partial(kc_2.lm, lm(log(price) ~ (log(sqft_living) + log(sqft_lot) + waterfront + view + condition + grade + bedbath), data=kc_data), adj=FALSE, type=c("v"))$partial.rsq
+rsq.partial(kc_2.lm, lm(log(price) ~ (log(sqft_living) + log(sqft_lot) + floors +  view + condition + grade + bedbath), data=kc_data), adj=FALSE, type=c("v"))$partial.rsq
+rsq.partial(kc_2.lm, lm(log(price) ~ (log(sqft_living) + log(sqft_lot) + floors + waterfront + condition + grade + bedbath), data=kc_data), adj=FALSE, type=c("v"))$partial.rsq
+rsq.partial(kc_2.lm, lm(log(price) ~ (log(sqft_living) + log(sqft_lot) + floors + waterfront + view + grade + bedbath), data=kc_data), adj=FALSE, type=c("v"))$partial.rsq
+rsq.partial(kc_2.lm, lm(log(price) ~ (log(sqft_living) + log(sqft_lot) + floors + waterfront + view + condition + bedbath), data=kc_data), adj=FALSE, type=c("v"))$partial.rsq
+rsq.partial(kc_2.lm, lm(log(price) ~ (log(sqft_living) + log(sqft_lot) + floors + waterfront + view + condition + grade), data=kc_data), adj=FALSE, type=c("v"))$partial.rsq
+```
 
