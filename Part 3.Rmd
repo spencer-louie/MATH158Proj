@@ -1,0 +1,93 @@
+---
+title: "Part 3"
+author: "Nick George"
+date: "3/21/2018"
+output: pdf_document
+---
+## Nick George and Spencer Louie 
+```{r setup, include=FALSE, echo=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(fig.width=6, fig.height=3)
+require(openintro)
+require(dplyr)
+require(broom)
+require(ggplot2)
+require(skimr)
+kc_data <- read.table("~/MATH158Proj/Project 1/kc_house_data.csv", header=TRUE,
+   sep=",")
+data("kc_house_data")
+kc_data <- kc_data %>% mutate(bedbath = bedrooms + bathrooms)
+
+```
+
+Introduction: 
+
+
+
+Regression Model:
+```{r, echo=FALSE, include=FALSE}
+kc_2.lm <- step(lm(log(price)~1, data=kc_data), log(price) ~ (log(sqft_living) + log(sqft_lot) + floors + waterfront + view + condition + grade + bedbath), direction="both", trace=1)
+drop1(kc_2.lm, test="F") # The code creates a model by finding the best model using AIC Forward-Backward Stepwise selection, then drop1 checks to see if any of the variables are low in significancy. This does not include interaction terms because when I used them the model was huge, so we can add them more selectively later. 
+
+```
+
+```{r, echo=FALSE}
+kc_data_2 <- subset(kc_data, select = c(price, grade, sqft_living, view, condition, sqft_lot, waterfront, bedbath, floors))
+kc_data_2 <- kc_data_2 %>% mutate(lprice = log(price), lsqft_living = log(sqft_living), lsqft_lot = log(sqft_lot))
+kc_data_3 <- subset(kc_data_2, select = c(lprice, grade, lsqft_living, view, condition, lsqft_lot, waterfront, bedbath, floors))
+kc_data_3.matrix <- data.matrix(kc_data_3)
+round(cor(kc_data_3.matrix), 2)
+```
+```{r, echo=FALSE, include=FALSE}
+pairs(kc_data_3) #I have this on include=FALSE because there are ton of graphs so it really slow everything down to use. 
+```
+
+
+The trouble explanatory variables with high correlation are: grade and lsqft_living as well as lsqft_living and bedbath. lsqft_living and lqft_lot are surprisingly not particularly problematic.  
+
+Interaction Terms:
+[We are not currently using interaction terms, however we could. Ones that could be potentially viable in a logical sense are: lsqft_living and floors, capturing so affect on how big each floor is. lsqft_lot and waterfront to try and capture how much waterfront property you have. And finally bedbath and lsqft_living because it could matter how spread out your bed and bath are in the house. However they are already high correlated so I'm not sure how that would affect it. Perhaps an interaction term with lsqft_living and lsqft_lot would be able to capture the effect of having a larger house on a smaller lot or vice versa.]  
+
+```{r, echo=FALSE}
+summary(kc_2.lm)
+```
+Grade is asscoiated with an "x" increase in price. Sqft_living is associated with an "x" increase in price. Having a view is associated with an "x" increase in price. An increase in condition by 1 is associated with an "x" increase in price. Sqft_lot is associated with an "x" decrease in price [CHECK - seems very strange.] Having a waterfront home is associated with an "x" increase in price. Having an extra bedbath is associated with an "x" decrease in price [CHECK - seems very strange.] Having an extra floor is associated with an "x" decrease in price [CHECK - might be strange, might not be can see logic for both ways]. All of the variables are significant at .001 significancy level. [I don't think it makes any sense to do a t-test other than just by 0, because I don't think the scale of the effect really matters here.]  
+
+
+```{r}
+kc_2.lm_nested <- lm(log(price) ~ log(sqft_lot) + log(sqft_living) + grade + waterfront + view + condition, data = kc_data)
+anova(kc_2.lm_nested, kc_2.lm) #Took out bedbath and floors as they were the least significant in the drop1 F-Test.
+```
+The bigger model, which includes bedbath and floors, is definitely significant at a near 0 significancy level. I would absolutely report the larger model not only because it is very siginificant, but even if it were only partially significant because this model is meant largely for prediction. The model being parismonioius is not very important because we want to predict future home sales based on the homes specifications, rather than just trying to find a handful key predictors. 
+
+```{r}
+summary(kc_2.lm_nested)$r.squared
+summary(kc_2.lm)$r.squared
+summary(kc_2.lm_nested)$adj.r.squared
+summary(kc_2.lm)$adj.r.squared
+
+```
+
+The nested model explains 59.2% of the variance in prices while the larger model explains 59.3% of the variance. The adjusted values are slightly smaller, but still in the same order. So the larger model definitely explains more even though it is less parismonous. Even though the R^2 is fairly large this is no guarantee that we have accurately described the population. An outlier could be throwing us off and pulling the line in a strange direction. Even if we impossibly had 100%, that only means that we have accurately described our sample, but the overall population might be quite different.  
+
+```{r, echo=FALSE}
+kc_2.rstudent <- rstudent(kc_2.lm)
+x = (.01/21613)/2
+qt(c(x, 1-x), df=21603)
+kc_2.rstudent.data <- data.frame(kc_2.rstudent)
+```
+Above 5.04 and below -5.04 are outliers. There are none that satisfy that requirement. 
+
+```{r, echo=FALSE}
+kc_2.hatvalues <- hatvalues(kc_2.lm)
+kc_2.hatvalues.data <- data.frame(kc_2.hatvalues)
+```
+2p/n = 20/21603 = 9.26e-4. [Need to check this seems extreme. Will ask her.] One does seem like a notable outlier though, observation 15871. 
+
+```{r, echo=FALSE}
+dffits.kc.data = data.frame(dffits(kc_2.lm), dfbetas(kc_2.lm), cooks.distance(kc_2.lm))
+dffits.kc.data_2 = dffits.kc.data[c(15871),]
+kable(cbind(dffits.kc.data_2), align = "c")
+```
+
+
