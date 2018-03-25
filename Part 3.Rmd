@@ -100,9 +100,28 @@ plot(cooks.distance(kc_2.lm))
   
 The only Cook's Distance that's significantly higher than the rest is at obesrvation 15871, but even that is still drasticly below 1. Overall it does not seem that any outlier is going to be problematic and so we do not need to look at data that excludes some points. 
 
+Model Selection:
+This model was seleced using a step function going both forward and backward based on AIC. So first the function added a predictor, originally to the null model, that decreased the AIC the most significantly. It would do that again until it ran out of predictors or could no longer add a predictor that reduced AIC. After that it went backward seeing that if it could decrease AIC by removing any predictors. This way you can account for variables that may no longer be significnat as others are added, such as through multicollinearity. 
 
-
-
+Condifence Intervals:
+```{r}
+kc_3_pred.data <- data.frame(grade=8, sqft_living=1200, view=0, condition=3, sqft_lot=7500, waterfront=1, bedbath=4, floors=1)
+kc_3_crit_val <- qt(.975, glance(kc_2.lm)$df.resid)
+kc_3_gl <- broom::glance(kc.lm)
+kc_3_sig <- dplyr::pull(kc_gl, sigma)
+kc_3_pred <- broom::augment(kc_2.lm, newdata=kc_3_pred.data, typepredict = "predict") %>% mutate(.se.pred = sqrt(kc_3_sig^2 + .se.fit^2)) %>% mutate(lower_PI = .fitted - crit_val*.se.pred, upper_PI = .fitted + crit_val*.se.pred, lower_CI = .fitted - crit_val*.se.fit, upper_CI = .fitted + crit_val * .se.fit)
+kc_3_pred 
+```
+PI: 12.48849 14.01647
+CI: 13.1944  13.31056 
+```{r}
+exp(12.48849)
+exp(14.01647)
+exp(13.1944)
+exp(13.31056)
+```
+PI: 265266.4 1222575
+CI: 537347.4 603535.4
 
 
 
