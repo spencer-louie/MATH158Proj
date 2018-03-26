@@ -63,7 +63,7 @@ An increase in the grade scale by 1 is asscoiated with an 20.1% increase in pric
 
 ```{r}
 kc_2.lm_nested <- lm(log(price) ~ log(sqft_lot) + log(sqft_living) + grade + waterfront + view + condition, data = kc_data)
-anova(kc_2.lm_nested, kc_3.lm) #Took out bedbath and floors as they were the least significant in the drop1 F-Test.
+anova(kc_2.lm_nested, kc_2.lm) #Took out bedbath and floors as they were the least significant in the drop1 F-Test.
 ```
 
 ```{r}
