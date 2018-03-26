@@ -24,14 +24,14 @@ kc_data <- kc_data %>% mutate(bedbath = bedrooms + bathrooms)
 Our regression aims to examine the factors that drive house prices. Our dataset is from the Center for Spatial Data Science, which has collected data on house prices from the King County Washington area from 2014 to 2015 (May). On the left hand side, we have the log of house prices (we decided to log the house prices to correct heteroskedasticity issues) and we have a number of selections for RHS variables. RHS variables of interest include: the square footage of the living space, the lot size, number of floors, whether it is a waterfront property, the condition of the house (as based on King County grading system), and number of bedroom/bathrooms.
 
 ##Regression Model:
+
+We first select our model through Forward-Backward Stepwise selection with an AIC criterion. The model is built using forward selection using AIC, then drop1 checks to see if any of the variables are low in significancy. This does not include interaction terms because when I used them the model was huge, so we can add them more selectively later. 
+
 ```{r, echo=FALSE, include=FALSE}
 kc_2.lm <- step(lm(log(price)~1, data=kc_data), log(price) ~ (log(sqft_living) + log(sqft_lot) + floors + waterfront + view + condition + grade + bedbath), direction="both", trace=1)
 drop1(kc_2.lm, test="F") 
 
 kc_2.lm.resid<- resid(kc_2.lm)
-
-# The code creates a model by finding the best model using AIC Forward-Backward Stepwise selection, then drop1 checks to see if any of the variables are low in significancy. This does not include interaction terms because when I used them the model was huge, so we can add them more selectively later. 
-
 ```
 
 ```{r, echo=FALSE}
@@ -40,8 +40,6 @@ kc_data_2 <- kc_data_2 %>% mutate(lprice = log(price), lsqft_living = log(sqft_l
 kc_data_3 <- subset(kc_data_2, select = c(lprice, grade, lsqft_living, view, condition, lsqft_lot, waterfront, bedbath, floors))
 kc_data_3.matrix <- data.matrix(kc_data_3)
 round(cor(kc_data_3.matrix), 2)
-
-#pairs(kc_data_3)
 ```
 
 [pairs(kc_data_3) The graphs really slow things down so I don't have them included for ease of processing right now.]
@@ -51,7 +49,7 @@ round(cor(kc_data_3.matrix), 2)
 The trouble explanatory variables with high correlation are: grade and lsqft_living as well as lsqft_living and bedbath. lsqft_living and lqft_lot are surprisingly not particularly problematic.  
 
 ##Interaction Terms:
-[We are not currently using interaction terms, however we could. Ones that could be potentially viable in a logical sense are: lsqft_living and floors, capturing so affect on how big each floor is. lsqft_lot and waterfront to try and capture how much waterfront property you have. And finally bedbath and lsqft_living because it could matter how spread out your bed and bath are in the house. However they are already high correlated so I'm not sure how that would affect it. Perhaps an interaction term with lsqft_living and lsqft_lot would be able to capture the effect of having a larger house on a smaller lot or vice versa.]  
+We are not currently using interaction terms because choosing interactions based on forward stepwise selection was very computationally intensive. Some that we considered are: lsqft_living and floors, capturing so affect on how big each floor is. lsqft_lot and waterfront to try and capture how much waterfront property you have. And finally bedbath and lsqft_living because it could matter how spread out your bed and bath are in the house. However they are already high correlated so I'm not sure how that would affect it. Perhaps an interaction term with lsqft_living and lsqft_lot would be able to capture the effect of having a larger house on a smaller lot or vice versa.]  
 
 ```{r, echo=FALSE}
 summary(kc_2.lm)
@@ -95,7 +93,7 @@ dffits.kc.data_2 = dffits.kc.data[c(15871),]
 ```
 
 ```{r, echo=FALSE}
-names(dffits.kc.data_2) <- c("DFFITS", "Intercept", "Grade", "lsq_liv", "View", "Condition", "lsq_lot", "Waterfront", "BedBath", "Floors", "Cook's")
+names(dffits.kc.data_2) <- c("DFFITS", "Intercept", "Grade", "lsq_liv", "View", "Condition", "lsq_lot", "Waterfront", "Cook's")
 kable(round(dffits.kc.data_2, 2), align = "c")
 ```
 
@@ -113,7 +111,7 @@ This model was seleced using a step function going both forward and backward bas
 ```{r}
 kc_3_pred.data <- data.frame(grade=8, sqft_living=1200, view=0, condition=3, sqft_lot=7500, waterfront=1, bedbath=4, floors=1)
 kc_3_crit_val <- qt(.975, glance(kc_2.lm)$df.resid)
-kc_3_gl <- broom::glance(kc_2.lm)
+kc_3_gl <- broom::glance(kc.lm)
 kc_3_sig <- dplyr::pull(kc_gl, sigma)
 kc_3_pred <- broom::augment(kc_2.lm, newdata=kc_3_pred.data, typepredict = "predict") %>% mutate(.se.pred = sqrt(kc_3_sig^2 + .se.fit^2)) %>% mutate(lower_PI = .fitted - crit_val*.se.pred, upper_PI = .fitted + crit_val*.se.pred, lower_CI = .fitted - crit_val*.se.fit, upper_CI = .fitted + crit_val * .se.fit)
 kc_3_pred 
@@ -134,14 +132,14 @@ CI: 537347.4 603535.4
 ##Partial Coefficent of Determination:
 ```{r, echo=FALSE}
 library(rsq) #Will likely need to install this package. 
-rsq.partial(kc_2.lm, lm(log(price) ~ log(sqft_lot) + floors + waterfront + view + condition + grade + bedbath, data=kc_data), adj=FALSE, type=c("v"))$partial.rsq
-rsq.partial(kc_2.lm, lm(log(price) ~ (log(sqft_living) + floors + waterfront + view + condition + grade + bedbath), data=kc_data), adj=FALSE, type=c("v"))$partial.rsq
-rsq.partial(kc_2.lm, lm(log(price) ~ (log(sqft_living) + log(sqft_lot) + waterfront + view + condition + grade + bedbath), data=kc_data), adj=FALSE, type=c("v"))$partial.rsq
-rsq.partial(kc_2.lm, lm(log(price) ~ (log(sqft_living) + log(sqft_lot) + floors +  view + condition + grade + bedbath), data=kc_data), adj=FALSE, type=c("v"))$partial.rsq
-rsq.partial(kc_2.lm, lm(log(price) ~ (log(sqft_living) + log(sqft_lot) + floors + waterfront + condition + grade + bedbath), data=kc_data), adj=FALSE, type=c("v"))$partial.rsq
-rsq.partial(kc_2.lm, lm(log(price) ~ (log(sqft_living) + log(sqft_lot) + floors + waterfront + view + grade + bedbath), data=kc_data), adj=FALSE, type=c("v"))$partial.rsq
-rsq.partial(kc_2.lm, lm(log(price) ~ (log(sqft_living) + log(sqft_lot) + floors + waterfront + view + condition + bedbath), data=kc_data), adj=FALSE, type=c("v"))$partial.rsq
-rsq.partial(kc_2.lm, lm(log(price) ~ (log(sqft_living) + log(sqft_lot) + floors + waterfront + view + condition + grade), data=kc_data), adj=FALSE, type=c("v"))$partial.rsq
+rsq.partial(kc_2.lm, lm(log(price) ~ log(sqft_lot) + waterfront + view + condition + grade, data=kc_data), adj=FALSE, type=c("v"))$partial.rsq
+rsq.partial(kc_2.lm, lm(log(price) ~ (log(sqft_living) + waterfront + view + condition + grade), data=kc_data), adj=FALSE, type=c("v"))$partial.rsq
+rsq.partial(kc_2.lm, lm(log(price) ~ (log(sqft_living) + log(sqft_lot) + waterfront + view + condition + grade), data=kc_data), adj=FALSE, type=c("v"))$partial.rsq
+rsq.partial(kc_2.lm, lm(log(price) ~ (log(sqft_living) + log(sqft_lot) +  view + condition + grade), data=kc_data), adj=FALSE, type=c("v"))$partial.rsq
+rsq.partial(kc_2.lm, lm(log(price) ~ (log(sqft_living) + log(sqft_lot) + waterfront + condition + grade), data=kc_data), adj=FALSE, type=c("v"))$partial.rsq
+rsq.partial(kc_2.lm, lm(log(price) ~ (log(sqft_living) + log(sqft_lot) + waterfront + view + grade), data=kc_data), adj=FALSE, type=c("v"))$partial.rsq
+rsq.partial(kc_2.lm, lm(log(price) ~ (log(sqft_living) + log(sqft_lot) + waterfront + view + condition), data=kc_data), adj=FALSE, type=c("v"))$partial.rsq
+rsq.partial(kc_2.lm, lm(log(price) ~ (log(sqft_living) + log(sqft_lot) + waterfront + view + condition + grade), data=kc_data), adj=FALSE, type=c("v"))$partial.rsq
 ```
 
 ##Summary
