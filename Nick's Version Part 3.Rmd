@@ -121,21 +121,21 @@ All of our variables are significant at a near 0 significany level. We note that
 kc_3_pred.data <- data.frame(grade=8, sqft_living=1200, view=0, condition=3, sqft_lot=7500, waterfront=1)
 kc_3_crit_val <- qt(.975, glance(kc_2.lm_nested)$df.resid)
 kc_3_gl <- broom::glance(kc_2.lm_nested)
-kc_3_sig <- dplyr::pull(kc_gl, sigma)
-kc_3_pred <- broom::augment(kc_2.lm_nested, newdata=kc_3_pred.data, typepredict = "predict") %>% mutate(.se.pred = sqrt(kc_3_sig^2 + .se.fit^2)) %>% mutate(lower_PI = .fitted - crit_val*.se.pred, upper_PI = .fitted + crit_val*.se.pred, lower_CI = .fitted - crit_val*.se.fit, upper_CI = .fitted + crit_val * .se.fit)
+kc_3_sig <- dplyr::pull(kc_3_gl, sigma)
+kc_3_pred <- broom::augment(kc_2.lm_nested, newdata=kc_3_pred.data, typepredict = "predict") %>% mutate(.se.pred = sqrt(kc_3_sig^2 + .se.fit^2)) %>% mutate(lower_PI = .fitted - kc_3_crit_val*.se.pred, upper_PI = .fitted + kc_3_crit_val*.se.pred, lower_CI = .fitted - kc_3_crit_val*.se.fit, upper_CI = .fitted + kc_3_crit_val * .se.fit)
 kc_3_pred 
 ```
-PI: 12.4801 14.00802
+PI: 12.58198 13.90614
 CI: 13.18641  13.30171
 ```{r}
-exp(12.4801)
-exp(14.00802)
+exp(12.58198)
+exp(13.90614)
 exp(13.18641)
 exp(13.30171)
 ```
 PI: 263050.2 1212288
 CI: 533071.1 598217.7
-95% of prices for a home with grade 8, 1200 living square footage, no view, a condition rating of 3, a 7500 square foot lot and a awater front view would be between 263,050 and 1,212,288. We are 95% confident that the average price of a home with those specifications would be between 533,071 and 598,217. 
+95% of prices for a home with grade 8, 1200 living square footage, no view, a condition rating of 3, a 7500 square foot lot and a awater front view would be between 291,262 and 1,094,863. We are 95% confident that the average price of a home with those specifications would be between 533,071 and 598,217. 
 
 
 
