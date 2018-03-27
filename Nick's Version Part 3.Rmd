@@ -1,6 +1,6 @@
 ---
 title: "Part 3"
-author: "Nick George"
+author: "Nick George & Spencer Louie"
 date: "3/21/2018"
 output: pdf_document
 ---
@@ -20,53 +20,35 @@ kc_data <- kc_data %>% mutate(bedbath = bedrooms + bathrooms)
 
 ```
 
-##Introduction
+#Introduction
 Our regression aims to examine the factors that drive house prices. Our dataset is from the Center for Spatial Data Science, which has collected data on house prices from the King County Washington area from 2014 to 2015 (May). On the left hand side, we have the log of house prices (we decided to log the house prices to correct heteroskedasticity issues) and we have a number of selections for RHS variables. RHS variables of interest include: the square footage of the living space, the lot size, number of floors, whether it is a waterfront property, the condition of the house (as based on King County grading system), and number of bedroom/bathrooms.
 
-##Regression Model:
+#Model Selection:
+This model was selected using a step function going both forward and backward based on AIC. So first the function added a predictor, originally to the null model, that decreased the AIC the most significantly. It would do that again until it ran out of predictors or could no longer add a predictor that reduced AIC. After that it went backward seeing that if it could decrease AIC by removing any predictors. This way you can account for variables that may no longer be significant as others are added, such as through multicollinearity. This process implied that we should use the full possible model noted above. However, using the nested F-test we came to another conclusion, as we put more importance on parsimony than the process implies. So we decided to use the smaller model that did not include the sum of beds and baths as well as the number of floors in the home. 
 ```{r, echo=FALSE, include=FALSE}
 kc_2.lm <- step(lm(log(price)~1, data=kc_data), log(price) ~ (log(sqft_living) + log(sqft_lot) + floors + waterfront + view + condition + grade + bedbath), direction="both", trace=1)
 drop1(kc_2.lm, test="F") 
-
-
-kc_2.lm.resid<- resid(kc_2.lm)
-
 # The code creates a model by finding the best model using AIC Forward-Backward Stepwise selection, then drop1 checks to see if any of the variables are low in significancy. This does not include interaction terms because when I used them the model was huge, so we can add them more selectively later. 
 
+kc_2.lm.resid<- resid(kc_2.lm)
+#ggplot(kc_data_2, kc_data_2$lprice, kc_2.lm.resid)
+
 
 ```
-The overall model we are looking at is one that include up to the log of living square footage, the log of lot square footage, number of floors, whether the house is waterfront or not, whether the house has a view or not, the condition of the house on a scale, the grade of the house on a scale, and the number of total beds and baths in the house.  
-```{r, echo=FALSE}
-kc_data_2 <- subset(kc_data, select = c(price, grade, sqft_living, view, condition, sqft_lot, waterfront, bedbath, floors))
-kc_data_2 <- kc_data_2 %>% mutate(lprice = log(price), lsqft_living = log(sqft_living), lsqft_lot = log(sqft_lot))
-kc_data_3 <- subset(kc_data_2, select = c(lprice, grade, lsqft_living, view, condition, lsqft_lot, waterfront, bedbath, floors))
-kc_data_3.matrix <- data.matrix(kc_data_3)
-round(cor(kc_data_3.matrix), 2)
-
-#pairs(kc_data_3)
-```
-
-[pairs(kc_data_3) The graphs really slow things down so I don't have them included for ease of processing right now.]
-
-
-
-The trouble explanatory variables with high correlation are: grade and lsqft_living as well as lsqft_living and bedbath. lsqft_living and lqft_lot are surprisingly not particularly problematic.  
+The model that we arrived at from this process is the log of price on the LHS, and on the RHS we have the "grade" of the house, the log of living space, the quality of the view, the condition of the house, the log of the square footage of the lot, waterfront, number of bed/baths, and floors. 
 
 ##Interaction Terms:
-[We are not currently using interaction terms, however we could. Ones that could be potentially viable in a logical sense are: lsqft_living and floors, capturing so affect on how big each floor is. lsqft_lot and waterfront to try and capture how much waterfront property you have. And finally bedbath and lsqft_living because it could matter how spread out your bed and bath are in the house. However they are already high correlated so I'm not sure how that would affect it. Perhaps an interaction term with lsqft_living and lsqft_lot would be able to capture the effect of having a larger house on a smaller lot or vice versa.]  
+We are not currently using interaction terms, however we could. Ones that could be potentially viable in a logical sense are: lsqft_living and floors, capturing so affect on how big each floor is. lsqft_lot and waterfront to try and capture how much waterfront property you have. And finally bedbath and lsqft_living because it could matter how spread out your bed and bath are in the house. However they are already high correlated so I'm not sure how that would affect it. Perhaps an interaction term with lsqft_living and lsqft_lot would be able to capture the effect of having a larger house on a smaller lot or vice versa.
+
+##Nested Models
+```{r, echo=FALSE}
+kc_2.lm_nested <- lm(log(price) ~ log(sqft_lot) + log(sqft_living) 
+                     + grade + waterfront + view + condition, data = kc_data)
+anova(kc_2.lm_nested, kc_2.lm) 
+#Took out bedbath and floors as they were the least significant in the drop1 F-Test.
+```
 
 ```{r, echo=FALSE}
-summary(kc_2.lm)
-```
-An increase in the grade scale by 1 is asscoiated with an 20.1% increase in price. A 1% increase in sqft_living is associated with an .478% increase in price. Having a view is associated with an 8.7% increase in price. An increase in the condition scale by 1 is associated with an 9.5% increase in price. A 1% increase in sqft_lot is associated with an .054% decrease in price. Having a waterfront home is associated with an 37.9% increase in price. Having an extra bedbath is associated with a 1.8% decrease in price  Having an extra floor is associated with a 1.4% decrease in price . All of the variables are significant at .001 significancy level. Some notable surprises are that having extra square footage in your lot is associated with a decrease in price, holding the other variables constant and having another bedroom or bathroom also is associated with a decrease in price holding the other factors constant. Having another floor associated with a decrease in price may seem strange, but makes sense when you consider that overall square footage is being held constant. 
-
-
-```{r}
-kc_2.lm_nested <- lm(log(price) ~ log(sqft_lot) + log(sqft_living) + grade + waterfront + view + condition, data = kc_data)
-anova(kc_2.lm_nested, kc_2.lm) #Took out bedbath and floors as they were the least significant in the drop1 F-Test.
-```
-
-```{r}
 summary(kc_2.lm_nested)$r.squared
 summary(kc_2.lm)$r.squared
 summary(kc_2.lm_nested)$adj.r.squared
@@ -74,7 +56,31 @@ summary(kc_2.lm)$adj.r.squared
 
 ```
 
-The nested model explains 59.2% of the variance in prices while the larger model explains 59.3% of the variance. The adjusted values are slightly smaller, but still in the same order. So the larger model definitely explains more, but it is less parsimonious. Since the R^2 change is so slight, we decided to use the nested model because it is more parsimonious and allows to more accrurately pinpoint driving factors of housing prices.  
+The nested model explains 59.2% of the variance in prices while the larger model explains 59.3% of the variance. The adjusted values are slightly smaller, but still in the same order. Though the larger model explains more of the variance at a very high level of significance, it is less parsimonious. Since the R^2 change is so slight, we decided to use the nested model because it is more parsimonious and allows to more accrurately pinpoint driving factors of housing prices. Thus our final model regresses the log of prices on grade, living square footage, the view, condition of the home, square footage of the lot, and waterfront property.  
+
+
+#Checking Technical Conditions
+Before we make inferences from our data, we must check the technical conditions to see whether they hold. We next look at the correlation of the variables to see the relationships among variables. 
+
+#Correlations
+```{r, echo=FALSE}
+kc_data_2 <- subset(kc_data, select = c(price, grade, sqft_living, view, condition, sqft_lot, waterfront, bedbath, floors))
+kc_data_2 <- kc_data_2 %>% mutate(lprice = log(price), lsqft_living = log(sqft_living), lsqft_lot = log(sqft_lot))
+kc_data_3 <- subset(kc_data_2, select = c(lprice, grade, lsqft_living, view, condition, lsqft_lot, waterfront, bedbath, floors))
+kc_data_3.matrix <- data.matrix(kc_data_3)
+round(cor(kc_data_3.matrix), 2)
+
+pairs(kc_data_3,cex=.2)
+```
+
+The trouble explanatory variables with high correlation are: grade and lsqft_living as well as lsqft_living and bedbath. lsqft_living and lqft_lot are surprisingly not particularly problematic.  
+
+#Residuals
+```{r, echo=FALSE}
+kc_2.lm_nested.resid <- resid(kc_2.lm_nested)
+plot(kc_data_2$lprice, kc.lma.resid, pch=18, cex=.2, xlab="Price", ylab="Residuals")
+```
+As we can see, the residuals seem normally distributed and homoskedastic. (the residual graph looks a bit streaky because of the high nubmer of categorical variables). Thus we can see that normality and homoskedasticity conditions are fulfilled.
 
 ```{r, echo=FALSE}
 kc_2.rstudent <- rstudent(kc_2.lm)
@@ -83,6 +89,7 @@ qt(c(x, 1-x), df=21603)
 kc_2.rstudent.data <- data.frame(kc_2.rstudent)
 ```
 Above 5.04 and below -5.04 are outliers. There are none that satisfy that requirement. 
+#Testing for Leverage
 
 ```{r, echo=FALSE}
 kc_2.hatvalues <- hatvalues(kc_2.lm_nested)
@@ -94,30 +101,30 @@ kc_2.hatvalues.data <- data.frame(kc_2.hatvalues)
 dffits.kc.data = data.frame(dffits(kc_2.lm_nested), dfbetas(kc_2.lm_nested), cooks.distance(kc_2.lm_nested))
 dffits.kc.data_2 = dffits.kc.data[c(15871),]
 ```
-
 ```{r, echo=FALSE}
 names(dffits.kc.data_2) <- c("DFFITS", "Intercept", "Grade", "lsq_liv", "View", "Condition", "lsq_lot", "Waterfront", "Cook's")
 kable(round(dffits.kc.data_2, 4), align = "c")
 ```
-None of these valus are partiularly out of the ordinary so it does not seem that our data is much influenced by the existence of outliers. 
   
+None of these values are partiularly out of the ordinary so it does not seem that our data is much influenced by the existence of outliers. 
+
 ```{r, echo=FALSE}
 plot(cooks.distance(kc_2.lm_nested))
 ```
   
 The only Cook's Distance that's significantly higher than the rest is at obesrvation 15871, but even that is still drasticly below 1. Overall it does not seem that any outlier is going to be problematic and so we do not need to look at data that excludes some points. 
 
-##Model Selection:
-This model was seleced using a step function going both forward and backward based on AIC. So first the function added a predictor, originally to the null model, that decreased the AIC the most significantly. It would do that again until it ran out of predictors or could no longer add a predictor that reduced AIC. After that it went backward seeing that if it could decrease AIC by removing any predictors. This way you can account for variables that may no longer be significant as others are added, such as through multicollinearity. This process implied that we should use the full possible model noted above. However, using the nested F-test we came to another conclusion, as we put more importance on parsimony than the process implies. So we decided to use the smaller model that did not include the sum of beds and baths as well as the number of floors in the home. 
+#Model Interpretation:
 
-##Model Interpretation:
-```{r}
+```{r, echo=FALSE}
 summary(kc_2.lm_nested)
 ```
-All of our variables are significant at a near 0 significany level. We note that an increase in grade, living square footage, condition, and having a view or being waterfront are associated with increase in price. The only negative effect from a predictor is an increase in lot size leads to a decrease in price. Even in this smaller model we still find that to be the case, which again seems somewhat troublesome. None of these variables are overly correlated with each other with the exception of grade and the log of square foot living space at .74.  
+An increase in the grade scale by 1 is asscoiated with an 20% increase in price. A 1% increase in sqft_living is associated with an .42% increase in price. Having a view is associated with an 8.9% increase in price. An increase in the condition scale by 1 is associated with an 9.7% increase in price. A 1% increase in sqft_lot is associated with an .048% decrease in price. Having a waterfront home is associated with an 38% increase in price. All of the variables are significant at .001 significancy level. Some notable surprises are that having extra square footage in your lot is associated with a decrease in price, holding the other variables constant and having another bedroom or bathroom also is associated with a decrease in price holding the other factors constant. This means that even holding a home's square footage constant, as one increases the lot size the price of the home decreases. We could be seeing some of a Simpson's paradox here.
+
+All of our variables are significant at a near 0 significance level. We note that an increase in grade, living square footage, condition, and having a view or being waterfront are associated with increase in price. The only negative effect from a predictor is an increase in lot size leads to a decrease in price. None of these variables are overly correlated with each other with the exception of grade and the log of square foot living space at .74. We decided to keep this in the model because it would yield a lower AIC.
 
 ##Condifence Intervals:
-```{r}
+```{r, echo=FALSE}
 kc_3_pred.data <- data.frame(grade=8, sqft_living=1200, view=0, condition=3, sqft_lot=7500, waterfront=1)
 kc_3_crit_val <- qt(.975, glance(kc_2.lm_nested)$df.resid)
 kc_3_gl <- broom::glance(kc_2.lm_nested)
@@ -125,9 +132,8 @@ kc_3_sig <- dplyr::pull(kc_3_gl, sigma)
 kc_3_pred <- broom::augment(kc_2.lm_nested, newdata=kc_3_pred.data, typepredict = "predict") %>% mutate(.se.pred = sqrt(kc_3_sig^2 + .se.fit^2)) %>% mutate(lower_PI = .fitted - kc_3_crit_val*.se.pred, upper_PI = .fitted + kc_3_crit_val*.se.pred, lower_CI = .fitted - kc_3_crit_val*.se.fit, upper_CI = .fitted + kc_3_crit_val * .se.fit)
 kc_3_pred 
 ```
-PI: 12.58198 13.90614
-CI: 13.18641  13.30171
-```{r}
+
+```{r, echo=FALSE}
 exp(12.58198)
 exp(13.90614)
 exp(13.18641)
@@ -135,7 +141,7 @@ exp(13.30171)
 ```
 PI: 263050.2 1212288
 CI: 533071.1 598217.7
-95% of prices for a home with grade 8, 1200 living square footage, no view, a condition rating of 3, a 7500 square foot lot and a awater front view would be between 291,262 and 1,094,863. We are 95% confident that the average price of a home with those specifications would be between 533,071 and 598,217. 
+95% of prices for a home with grade 8, 1200 living square footage, no view, a condition ratincg of 3, a 7500 square foot lot and a awater front view would be between 291,262 and 1,094,863. We are 95% confident that the average price of a home with those specifications would be between 533,071 and 598,217. 
 
 
 
@@ -155,3 +161,4 @@ The higher partial coefficients of determination belong to the log of living squ
 We started by finding a model through the forwards-backwards selection with an AIC criterion. Through this we landed on a model with square footage of the lot and of the living space, its grade, its quality of view, whether it was a waterfront view, and its condition. Through a nested F test we eliminated the number of floors and the number of bedrooms/bathrooms. Through ANOVA, residual plots, and diagnostics, we see that the regression is well-fitted and not unduly influenced by extreme X or Y variables.
 
 #Aside
+We have an m of 6 here. One F-test hypothesis and five two-sided t-tests on our coefficients. When we multiply the p values by 6 for the coefficients, we see that there is no change in significance because the p-values are so small that this multiplication makes a negligible change. As for the nested F-test, the results were similar. The p-value for the nested F-test is 2.5e^-14, so a multiplication of 6 would not change the significance.
