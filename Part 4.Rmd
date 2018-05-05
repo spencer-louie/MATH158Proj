@@ -1,0 +1,100 @@
+---
+title: "Part 4"
+author: "Nick George"
+date: "5/3/2018"
+output: pdf_document
+---
+## Nick George and Spencer Louie 
+```{r setup, include=FALSE, echo=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(fig.width=6, fig.height=3)
+require(openintro)
+require(dplyr)
+require(broom)
+require(ggplot2)
+require(skimr)
+require(readr)
+require(glmnet)
+require(splines)
+kc_data <- read.table("~/MATH158Proj/Part 1/kc_house_data.csv", header=TRUE,
+   sep=",")
+data("kc_house_data")
+kc_data <- kc_data %>% mutate(bedbath = bedrooms + bathrooms)
+
+```
+
+
+```{r}
+lambda.grid <- 10^seq(5,-5, length=100)
+kc_4_Xdata <- kc_data[-c(1, 2, 3, 15, 16, 17, 18, 19, 20, 21)]
+kc_4_Xmatrix <- data.matrix(kc_4_Xdata)
+kc_rr.cv<-cv.glmnet(kc_4_Xmatrix, log(kc_data$price), alpha=0, lambda=lambda.grid)
+coef(kc_rr.cv, s = "lambda.min")
+kc_lasso.cv<-cv.glmnet(kc_4_Xmatrix, log(kc_data$price), alpha=1, lambda=lambda.grid)
+coef(kc_lasso.cv, s = "lambda.min")
+```
+
+```{r}
+lotlims <- range(kc_data$sqft_lot)
+lot.grid <-seq(from=lotlims[1], to=lotlims[2])
+
+kc.rs1 <- lm(price ~ bs(sqft_lot, degree=3, knots=c(100000, 200000, 300000)), data=kc_data)
+kc.rs1.pred <- predict(kc.rs1, newdata=list(sqft_lot=lot.grid), se=TRUE)
+kc.rs1.se <- cbind(kc.rs1.pred$fit + 2*kc.rs1.pred$se.fit,
+                   kc.rs1.pred$fit - 2*kc.rs1.pred$se.fit)
+kc.rs2 <- lm(price ~ bs(sqft_lot, degree=3, df=6), data=kc_data)
+kc.rs2.pred <- predict(kc.rs2, newdata=list(sqft_lot=lot.grid), se=TRUE)
+kc.rs2.se <- cbind(kc.rs2.pred$fit + 2*kc.rs2.pred$se.fit,
+                   kc.rs2.pred$fit - 2*kc.rs2.pred$se.fit)
+kc.rs3 <- lm(price ~ bs(sqft_lot, degree=4, df=5), data=kc_data)
+kc.rs3.pred <- predict(kc.rs3, newdata=list(sqft_lot=lot.grid), se=TRUE)
+kc.rs3.se <- cbind(kc.rs3.pred$fit + 2*kc.rs3.pred$se.fit,
+                   kc.rs3.pred$fit - 2*kc.rs3.pred$se.fit)
+kc.rs4 <- lm(price ~ bs(sqft_lot, degree=4, df=6), data=kc_data)
+kc.rs4.pred <- predict(kc.rs4, newdata=list(sqft_lot=lot.grid), se=TRUE)
+kc.rs4.se <- cbind(kc.rs4.pred$fit + 2*kc.rs4.pred$se.fit,
+                   kc.rs4.pred$fit - 2*kc.rs4.pred$se.fit)
+
+```
+
+```{r}
+plot(kc_data$sqft_lot, kc_data$price, cex=.5, pch=19, col="darkgrey", xlab="Squarefoot Living", ylab="Price", xlim=lotlims)
+title("Regression Spline", outer= F)
+lines(lot.grid, kc.rs1.pred$fit, lwd=2, col="blue")
+lines(lot.grid, kc.rs2.pred$fit, lwd=2, col="red")
+lines(lot.grid, kc.rs3.pred$fit, lwd=2, col="green")
+lines(lot.grid, kc.rs4.pred$fit, lwd=2, col="orange")
+
+
+```
+
+```{r}
+## This code takes a long time to run. 
+kc.lor1 <- loess(price ~ sqft_lot, span=.2, data=kc_data)
+kc.lor1.pred <- predict(kc.lor1, se=TRUE)
+kc.lor1.se <- cbind(kc.lor1.pred$fit + 2*kc.lor1.pred$se.fit,
+                    kc.lor1.pred$fit - 2*kc.lor1.pred$se.fit)
+kc.lor2 <- loess(price ~ sqft_lot, span=.5, data=kc_data)
+kc.lor2.pred <- predict(kc.lor2, se=TRUE)
+kc.lor2.se <- cbind(kc.lor2.pred$fit + 2*kc.lor2.pred$se.fit,
+                    kc.lor2.pred$fit - 2*kc.lor2.pred$se.fit)
+kc.lor3 <- loess(price ~ sqft_lot, span=.7, data=kc_data)
+kc.lor3.pred <- predict(kc.lor3, se=TRUE)
+kc.lor3.se <- cbind(kc.lor3.pred$fit + 2*kc.lor3.pred$se.fit,
+                    kc.lor3.pred$fit - 2*kc.lor3.pred$se.fit)
+kc.lor4 <- loess(price ~ sqft_lot, span=.1, data=kc_data)
+kc.lor4.pred <- predict(kc.lor4, se=TRUE)
+kc.lor4.se <- cbind(kc.lor4.pred$fit + 2*kc.lor4.pred$se.fit,
+                    kc.lor4.pred$fit - 2*kc.lor4.pred$se.fit)
+```
+
+```{r}
+plot(kc_data$sqft_lot, kc_data$price, cex = .5, pch=19, col = 'darkgrey', xlab = 'Squarefoot Living', ylab='Price', xlim=lotlims)
+title('Local Regression (Loess)', outer=F)
+lines(kc_data$sqft_lot, kc.lor1.pred$fit, lwd=2, col="blue")
+lines(kc_data$sqft_lot, kc.lor2.pred$fit, lwd=2, col="red")
+lines(kc_data$sqft_lot, kc.lor3.pred$fit, lwd=2, col="green")
+lines(kc_data$sqft_lot, kc.lor4.pred$fit, lwd=2, col="yellow")
+
+```
+
