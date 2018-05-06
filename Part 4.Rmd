@@ -20,19 +20,38 @@ kc_data <- read.table("~/MATH158Proj/Part 1/kc_house_data.csv", header=TRUE,
    sep=",")
 data("kc_house_data")
 kc_data <- kc_data %>% mutate(bedbath = bedrooms + bathrooms)
+kc_data_trial <- kc_data[-(15871),]
 
 ```
-
+Introduction:
+This study is based on a data set of home sales in King County, Washington from 2014 to 2015 (May) and comes from the Center for Spatial Data Science. The relevant variables are price, the sale price of the home; sqft_living, the square footage of living space; sqft_lot, the square footage of lot space; the number of floors; whether the property is watefront; the number of bedrooms/bathrooms, and the condition of the house (based on King County's grading system). From this data we are hoping to infer more about the general population of home sales in the U.S. As such specific variables like condition, will be extrapalated as roughly how much the structure of the house matters rather than the specific value because it is based on King County's system. The goal of this research is to figure out which factors are important in deciding the sale price of a home.  
 
 ```{r}
 lambda.grid <- 10^seq(5,-5, length=100)
-kc_4_Xdata <- kc_data[-c(1, 2, 3, 15, 16, 17, 18, 19, 20, 21)]
-kc_4_Xmatrix <- data.matrix(kc_4_Xdata)
+kc_4_Xdata <- kc_data[-c(1, 2, 3, 16, 17, 18, 19, 20, 21)]
+kc_4_Xdata <- kc_4_Xdata %>% mutate(lsqft_living <- log(sqft_living))
+kc_4_Xdata <- kc_4_Xdata %>% mutate(lsqft_lot <- log(sqft_lot))
+kc_4_Xdata <- kc_4_Xdata %>% mutate(yr_built.adj <- yr_built - 1899)
+kc_4_Xdata.final <- kc_4_Xdata[-c(1,2,3,4,10, 12)]
+kc_4_Xmatrix <- data.matrix(kc_4_Xdata.final)
 kc_rr.cv<-cv.glmnet(kc_4_Xmatrix, log(kc_data$price), alpha=0, lambda=lambda.grid)
 coef(kc_rr.cv, s = "lambda.min")
 kc_lasso.cv<-cv.glmnet(kc_4_Xmatrix, log(kc_data$price), alpha=1, lambda=lambda.grid)
 coef(kc_lasso.cv, s = "lambda.min")
+kc_mlr.lm <- lm(log(price) ~  floors + waterfront + view + condition + grade + bedbath + log(sqft_living) + log(sqft_lot), data= kc_data)
+coef(kc_mlr.lm)
 ```
+The ridge regression model suggests that we use all of the coefficients just as we would expect. The lasso model similarly suggests we use all of the variables which includes one more than we did in our own model. It suggests that we should include the amount of square footage in the basement, as well as the year the home was built. Note that the year built variable is been slightly adjusted so that 1900, the oldest home, is considered year 1 and then goes up normally from there. All of the coefficients for predictors in all three models are the same across the model in terms of direction, though not necessarily in magnitude (but not great changes in magnitude either). Except for floors, which went from having a negative coefficient in our multiple linear regression model to a postive one in the lasso and ridge regression models. We originally did not include the variables added in these models for logistical reasons. First the amount of squarefootage in the basement was problematic because it did not include a way to qualify when the basement was finished or not. Furthermore for the year the house was built, some of the homes have had renovations, but we have no way of qualifying the quality or scale of renovations. And due to those problems we did not originally include those predictors.  
+
+```{r}
+plot(log(kc_data$price), fitted(kc_mlr.lm), type="p")
+points(log(kc_data$price), predict(kc_rr.cv, newx=kc_4_Xmatrix, s= "lambda.min"), col="blue")
+points(log(kc_data$price), predict(kc_lasso.cv, newx=kc_4_Xmatrix, s= "lambda.min"), col="red")
+
+
+```
+This graph shows the true values of the log of price on the x axis and the fitted values for each of the regression types on the y axis. Ideally we would a one-to-one relationship or a slope of 1 (although admittedly that could mean overfitting, which would be problematic). In black are multiple linear regression values, in blue are the ridge regression values and in red are the lasso values. The lasso and ridge regression models are very similar as you can see in the table with their coefficients, so in most places they are just overtop of each other. The black multiple linear regression points are also quite close to their blue/red counterparts implying that the models predict fairly similarly. Overall we have decided to stick with our originally multiple linear regression model because we are warry of the two logical reasons for excluding the two added variables in ridge regression and lasso and including them may cause some kind of unintended bias. 
+
 
 ```{r}
 lotlims <- range(kc_data$sqft_lot)
@@ -97,4 +116,38 @@ lines(kc_data$sqft_lot, kc.lor3.pred$fit, lwd=2, col="green")
 lines(kc_data$sqft_lot, kc.lor4.pred$fit, lwd=2, col="yellow")
 
 ```
+
+```{r}
+kc4.lm.full1<- lm(price ~ sqft_living + sqft_lot + factor(floors) + factor(waterfront) + factor(view) + factor(condition) + factor(grade) + factor(bedbath), data=kc_data_trial)
+kc4.lm.full2<- lm(log(price) ~ log(sqft_living) + log(sqft_lot) + factor(floors) + factor(waterfront) + factor(view) + factor(condition) + factor(grade) + factor(bedbath), data=kc_data_trial)
+kc4.lm.red1<- lm(price ~ sqft_living + sqft_lot + floors + waterfront + view + condition + grade + bedbath, data=kc_data_trial)
+kc4.lm.red2<- lm(log(price) ~ log(sqft_living) + log(sqft_lot) + floors + waterfront + view + log(condition) + grade + bedbath, data=kc_data_trial)
+anova(kc4.lm.full1,kc4.lm.red1)
+anova(kc4.lm.full2,kc4.lm.red2)
+
+```
+```{r}
+kc4.lm.full3<- lm(price ~ as.factor(bedbath), data=kc_data_trial)
+kc4.lm.red3<- lm(price ~ 0 + bedbath^2, data=kc_data_trial)
+anova(kc4.lm.red3,kc4.lm.full3)
+plot(fitted(lm(log(price)~bedbath, data=kc_data)), resid(lm(log(price) ~ bedbath, data=kc_data)))
+```
+
+Another way to check for fit as well as significanace is through added variable plots. The premise behind these plots is to see how and if an additional predictor matters when you consider the other predictors already included in the model. We are more interested in the how part of the added variable plot than the if. The plot gives us the ability to again help evaluate fit. We can see if the fit is linear or something else. Fit is extremely important for our model and any model, because if the model does not accurately represent the data then the inferences from it will be innaccurate. Our model fit is particularly important because it is not obviously linear as is, and to address that we have already made several transformations to the data. The plots show the residuals of one variale given that the other variables are in teh model. Each point is $e_i(Y|X_2+X_3+X_4) = Y_i - \hat{Y}(X_2) - \hat{Y}(X_3) - \hat{Y}(X_4)$ on the Y axis. On the X axis it is, $e_i(X_1|X_2+X_3+X_4) = X_{i1} - \hat{X_{i1}}(X_2) - \hat{X_{i1}}(X_3) - \hat{X_{i1}}(X_4)$ In order to get these points we are doing a regression so we do require the normal assumptions or technical conditions for a regression, normality and constant variance for error terms, independence and linearity. With our dataset being so large we are able to satisfy the normality condition and we have checked for the previous assumption earlier. 
+
+```{r}
+
+require(car)
+avPlots(kc4.lm.red2, terms=~floors)
+avPlots(kc4.lm.red2, terms=~log(condition))
+avPlots(kc4.lm.red2, terms=~grade)
+avPlots(kc4.lm.red2, terms=~bedbath)
+
+```
+
+Here we have several added variable plots for a few variables of interest. Since none of them have straight horizontal line we do see a relationship for all of them and therefore each one adds something to the plot. Floors and bedbath have some what negative relationships, when the other variables are considered in the model. While condition and grade have fairly significant postive relationships, when considering the other variables in the model. We also see the the lines themselves as well as the points seem to imply linear relationships, the lines are straight and the points are not mostly above or below the line at certain parts, rather they are even distributed at ever segement of the line. 
+```{r}
+avPlots(lm(log(price) ~ sqft_living + log(sqft_lot) + floors + waterfront + view + log(condition) + grade + bedbath, data=kc_data_trial), terms=~sqft_living)
+```
+Here we have a graph that all parts of the model included except for sqft_living, which we are looking at without a transformation. We do see that the line is straight, but the points are not as evenly distributed as we have seen the in past. Earlier and later on it seems more points are below and in the middle more are above. The curvature implies we should use a transformation, which we have done.  
 
