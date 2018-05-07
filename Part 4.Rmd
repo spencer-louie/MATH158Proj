@@ -21,8 +21,8 @@ kc_data <- read.table("~/MATH158Proj/Part 1/kc_house_data.csv", header=TRUE,
 data("kc_house_data")
 kc_data <- kc_data %>% mutate(bedbath = bedrooms + bathrooms)
 kc_data <- kc_data %>% mutate(lprice = log(price))
-kc_data_trial <- kc_data[-(15871),]
-
+kc_data <- kc_data[-(15871),]
+kc_data<- kc_data %>% mutate(bedbathi = round(bedbath, digits=0))
 ```
 Introduction:
 This study is based on a data set of home sales in King County, Washington from 2014 to 2015 (May) and comes from the Center for Spatial Data Science. The relevant variables are price, the sale price of the home; sqft_living, the square footage of living space; sqft_lot, the square footage of lot space; the number of floors; whether the property is watefront; the number of bedrooms/bathrooms, and the condition of the house (based on King County's grading system). From this data we are hoping to infer more about the general population of home sales in the U.S. As such specific variables like condition, will be extrapalated as roughly how much the structure of the house matters rather than the specific value because it is based on King County's system. The goal of this research is to figure out which factors are important in deciding the sale price of a home.  
@@ -128,24 +128,24 @@ Overall we would the blue Loess model to predict future values. We think it is i
 
 One factor that we are particularly cognisant of in our research is the fit of our model. Without an approriate fit the inference of our predictors is fairly meaningless and inaccurate. It is also important because the shape of our model is not necesarilly obvious. So we have decided to look at a few things to help us ensure an appropriate model. First, we have decided to look at the Lack of Fit test. This is an F-Test with the simple goal of evaluating fit. One of the convenient aspects of this test is that it does not require any additional assumptions then the one we have used to run our regressions as it is simply looking at two regressions. In fact, it does not even require linearity as that is what it is meant to test for. This test uses a nested F-test, so it is comprised of both a full model and a reduced model. The full model looks at a regression where instead of assuming a linear relationship it counts each variable as a factor variable, so it measure the mean Y at each level of a variable. In other words what is the average value of Y when X1=1. The reduced model is the regression you wish to test, normally one that assumes linearity and so we would have our normal $\beta$s telling us the slope of a predictor instead of giving as a value at each level of it. This model only works if the variables you are testing are categorical in this sense. There must be multiple observations at each level. Below we have run this test on our variables that fit these requirements. Note that sqft_living and sqft_lot are not run as factor variables because they are continuous and there are not multiple observations at each level. 
 ```{r}
-kc4.lm.full1<- lm(price ~ sqft_living + sqft_lot + factor(floors) + factor(waterfront) + factor(view) + factor(condition) + factor(grade) + factor(bedbath), data=kc_data_trial)
-kc4.lm.full2<- lm(log(price) ~ log(sqft_living) + log(sqft_lot) + factor(floors) + factor(waterfront) + factor(view) + factor(condition) + factor(grade) + factor(bedbath), data=kc_data_trial)
-kc4.lm.red1<- lm(price ~ sqft_living + sqft_lot + floors + waterfront + view + condition + grade + bedbath, data=kc_data_trial)
-kc4.lm.red2<- lm(log(price) ~ log(sqft_living) + log(sqft_lot) + floors + waterfront + view + log(condition) + grade + bedbath, data=kc_data_trial)
+kc4.lm.full1<- lm(price ~ sqft_living + sqft_lot + factor(floors) + factor(waterfront) + factor(view) + factor(condition) + factor(grade) + factor(bedbath), data=kc_data)
+kc4.lm.full2<- lm(log(price) ~ log(sqft_living) + log(sqft_lot) + factor(floors) + factor(waterfront) + factor(view) + factor(condition) + factor(grade) + factor(as.integer(bedbath)), data=kc_data)
+kc4.lm.red1<- lm(price ~ sqft_living + sqft_lot + floors + waterfront + view + condition + grade + bedbath, data=kc_data)
+kc4.lm.red2<- lm(log(price) ~ log(sqft_living) + log(sqft_lot) + floors + waterfront + view + log(condition) + grade + bedbathi, data=kc_data)
 anova(kc4.lm.full2,kc4.lm.red2)
 ```
 Here we find that we reject the null hypothesis, that the model fits, because our p-value is near 0, thus implying that the model does not fit. So instead of assuming a linear relationship with these stepped variables we will instead consider them as factor variables, finding the mean price at each given level, for example the mean price for a home with 5 beds and baths. The results for such a regression are shown below.
 
 ```{r}
-summary(kc4.lm.full2)
+summary(lm(log(price) ~ log(sqft_living) + log(sqft_lot) + factor(as.integer(floors)) + factor(waterfront) + factor(view) + factor(condition) + factor(grade) + factor(bedbathi), data=kc_data))
 ```
 Now we have significantly more coefficients as we have one for each factor level, or really we have one less than that as the intercept term contains all of the base factor levels, such as view=0 (not having a view) and grade=2 (the lowest grade in the data set). Some interesting notes are that grade is only significant for it's bottom three and final two (3,4,5 and 12 and 13), which implies that grades 6 through 11 all have the same effect on home price. So only when a home's grade is really high will it be important benefit in the price. Similarly condition is only significant for its two highest levels 4 and 5, so again only if the condition of a home is extraordinary will it be associated with a benefit in the sale price. when we look a the bedbath coefficients we can see them somewhat more like cutoffs. 5, 5.25, 5.5 etc are not necessarily significant but 6 is, so within a certain value for bedbath there is not necesarilly an extra benefit, though having more is generally better as at certain points it becomes significant. View we find significant at every level and has positive coefficients so each factor higher in view is associated with an increase in price. 
 ```{r}
-kc_data_trial <- kc_data_trial %>% mutate(grade2 = grade^2)
-kc4.lm.full3<- lm(price ~ as.factor(grade), data=kc_data_trial)
-kc4.lm.red3<- lm(price ~ grade + grade2, data=kc_data_trial)
+kc_data_trial <- kc_data_trial %>% mutate(bedbath2 = bedbath^2)
+kc4.lm.full3<- lm(price ~ as.factor(bedbath), data=kc_data_trial)
+kc4.lm.red3<- lm(price ~ bedbath + bedbath2, data=kc_data_trial)
 anova(kc4.lm.red3,kc4.lm.full3)
-ggplot(data=kc_data, aes(x=factor(grade), y=lprice)) + stat_summary(fun.y="mean", geom="point")
+ggplot(data=kc_data, aes(x=factor(bedbath), y=lprice)) + stat_summary(fun.y="mean", geom="point")
 ```
 
 Another way to check for fit as well as significanace is through added variable plots. The premise behind these plots is to see how and if an additional predictor matters when you consider the other predictors already included in the model. We are more interested in the how part of the added variable plot than the if. The plot gives us the ability to again help evaluate fit. We can see if the fit is linear or something else. Fit is extremely important for our model and any model, because if the model does not accurately represent the data then the inferences from it will be innaccurate. Our model fit is particularly important because it is not obviously linear as is, and to address that we have already made several transformations to the data. The plots show the residuals of one variale given that the other variables are in teh model. Each point is $e_i(Y|X_2+X_3+X_4) = Y_i - \hat{Y}(X_2) - \hat{Y}(X_3) - \hat{Y}(X_4)$ on the Y axis. On the X axis it is, $e_i(X_1|X_2+X_3+X_4) = X_{i1} - \hat{X_{i1}}(X_2) - \hat{X_{i1}}(X_3) - \hat{X_{i1}}(X_4)$ In order to get these points we are doing a regression so we do require the normal assumptions or technical conditions for a regression, normality and constant variance for error terms, independence and linearity. With our dataset being so large we are able to satisfy the normality condition and we have checked for the previous assumption earlier. 
