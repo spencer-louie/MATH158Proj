@@ -56,7 +56,8 @@ This graph shows the true values of the log of price on the x axis and the fitte
 ```{r}
 lotlims <- range(kc_data$sqft_lot)
 lot.grid <-seq(from=lotlims[1], to=lotlims[2])
-
+lot.data <- data.frame(sqft_lot=lot.grid)
+sort(kc_data_trial$sqft_lot)
 kc.rs1 <- lm(price ~ bs(sqft_lot, degree=3, knots=c(100000, 200000, 300000)), data=kc_data)
 kc.rs1.pred <- predict(kc.rs1, newdata=list(sqft_lot=lot.grid), se=TRUE)
 kc.rs1.se <- cbind(kc.rs1.pred$fit + 2*kc.rs1.pred$se.fit,
@@ -75,6 +76,9 @@ kc.rs4.se <- cbind(kc.rs4.pred$fit + 2*kc.rs4.pred$se.fit,
                    kc.rs4.pred$fit - 2*kc.rs4.pred$se.fit)
 
 ```
+```{r}
+lot.grid
+```
 
 ```{r}
 plot(kc_data$sqft_lot, kc_data$price, cex=.5, pch=19, col="darkgrey", xlab="Squarefoot Lot", ylab="Price", xlim=lotlims)
@@ -87,6 +91,19 @@ lines(lot.grid, kc.rs4.pred$fit, lwd=2, col="orange")
 
 ```
 The above graph shows four different regression splines for square footage of lot against price. All four models include knots at 100,000, 200,000 and 300,000 in order to get at the extra variability we see early on. The blue line includes those three knots at degree 3. The red line includes those three knots plus another knot at 10,000 to look at the variability extremely early on. The green line includes the originaly three knots and another at 750,000 to see the effect of the slightly different nature towards the end. Lastly the orange line has the original three knots at degree 5. We see that the lines follow fairly similar paths with slight difference related to the difference in creation. For example, the orange line sees much greater curvature due to its increased degree, then green line provides a slightly different shape towards the end then the red and blue lines because of the extra knot at 750,000.  
+
+```{r}
+## ALL OF THE CODE FROM HERE TO LINES DOES NOT WORK AT THE MOMENT
+kc.lor1 <- loess(price ~ sqft_lot, span=.2, data=kc_data_trial)
+kc.lor1.pred <- predict(kc.lor1, se=TRUE)
+kc.lor1.se <- cbind(kc.lor1.pred$fit + 2*kc.lor1.pred$se.fit,
+                    kc.lor1.pred$fit - 2*kc.lor1.pred$se.fit)
+
+```
+```{r}
+kc.lor1.pred.fit <-kc.lor1.pred$fit
+```
+
 ```{r}
 ## This code takes a long time to run. 
 kc.lor1 <- loess(price ~ sqft_lot, span=.2, data=kc_data)
@@ -110,10 +127,8 @@ kc.lor4.se <- cbind(kc.lor4.pred$fit + 2*kc.lor4.pred$se.fit,
 ```{r}
 plot(kc_data$sqft_lot, kc_data$price, cex = .5, pch=19, col = 'darkgrey', xlab = 'Squarefoot Living', ylab='Price', xlim=lotlims)
 title('Local Regression (Loess)', outer=F)
-lines(kc_data$sqft_lot, kc.lor1.pred$fit, lwd=2, col="blue")
-lines(kc_data$sqft_lot, kc.lor2.pred$fit, lwd=2, col="red")
-lines(kc_data$sqft_lot, kc.lor3.pred$fit, lwd=2, col="green")
-lines(kc_data$sqft_lot, kc.lor4.pred$fit, lwd=2, col="yellow")
+lines(kc_data_trial$sqft_lot, kc.lor1.pred$fit , lwd=2, col="blue")
+
 
 ```
 
