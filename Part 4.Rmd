@@ -20,6 +20,7 @@ kc_data <- read.table("~/MATH158Proj/Part 1/kc_house_data.csv", header=TRUE,
    sep=",")
 data("kc_house_data")
 kc_data <- kc_data %>% mutate(bedbath = bedrooms + bathrooms)
+kc_data <- kc_data %>% mutate(lprice = log(price))
 kc_data_trial <- kc_data[-(15871),]
 
 ```
@@ -32,7 +33,7 @@ kc_4_Xdata <- kc_data[-c(1, 2, 3, 16, 17, 18, 19, 20, 21)]
 kc_4_Xdata <- kc_4_Xdata %>% mutate(lsqft_living <- log(sqft_living))
 kc_4_Xdata <- kc_4_Xdata %>% mutate(lsqft_lot <- log(sqft_lot))
 kc_4_Xdata <- kc_4_Xdata %>% mutate(yr_built.adj <- yr_built - 1899)
-kc_4_Xdata.final <- kc_4_Xdata[-c(1,2,3,4,10, 12)]
+kc_4_Xdata.final <- kc_4_Xdata[-c(1,2,3,4,10, 12, 14)]
 kc_4_Xmatrix <- data.matrix(kc_4_Xdata.final)
 kc_rr.cv<-cv.glmnet(kc_4_Xmatrix, log(kc_data$price), alpha=0, lambda=lambda.grid)
 coef(kc_rr.cv, s = "lambda.min")
@@ -47,17 +48,19 @@ The ridge regression model suggests that we use all of the coefficients just as 
 plot(log(kc_data$price), fitted(kc_mlr.lm), type="p")
 points(log(kc_data$price), predict(kc_rr.cv, newx=kc_4_Xmatrix, s= "lambda.min"), col="blue")
 points(log(kc_data$price), predict(kc_lasso.cv, newx=kc_4_Xmatrix, s= "lambda.min"), col="red")
-
-
 ```
+
+
 This graph shows the true values of the log of price on the x axis and the fitted values for each of the regression types on the y axis. Ideally we would a one-to-one relationship or a slope of 1 (although admittedly that could mean overfitting, which would be problematic). In black are multiple linear regression values, in blue are the ridge regression values and in red are the lasso values. The lasso and ridge regression models are very similar as you can see in the table with their coefficients, so in most places they are just overtop of each other. The black multiple linear regression points are also quite close to their blue/red counterparts implying that the models predict fairly similarly. Overall we have decided to stick with our originally multiple linear regression model because we are warry of the two logical reasons for excluding the two added variables in ridge regression and lasso and including them may cause some kind of unintended bias. 
 
 
 ```{r}
 lotlims <- range(kc_data$sqft_lot)
 lot.grid <-seq(from=lotlims[1], to=lotlims[2])
-lot.data <- data.frame(sqft_lot=lot.grid)
-sort(kc_data_trial$sqft_lot)
+lot.grid2 <-seq(from=lotlims[1], to=lotlims[2], by=100)
+```
+
+```{r}
 kc.rs1 <- lm(price ~ bs(sqft_lot, degree=3, knots=c(100000, 200000, 300000)), data=kc_data)
 kc.rs1.pred <- predict(kc.rs1, newdata=list(sqft_lot=lot.grid), se=TRUE)
 kc.rs1.se <- cbind(kc.rs1.pred$fit + 2*kc.rs1.pred$se.fit,
@@ -66,18 +69,15 @@ kc.rs2 <- lm(price ~ bs(sqft_lot, degree=3, knots=c(10000, 100000, 200000, 30000
 kc.rs2.pred <- predict(kc.rs2, newdata=list(sqft_lot=lot.grid), se=TRUE)
 kc.rs2.se <- cbind(kc.rs2.pred$fit + 2*kc.rs2.pred$se.fit,
                    kc.rs2.pred$fit - 2*kc.rs2.pred$se.fit)
-kc.rs3 <- lm(price ~ bs(sqft_lot, degree=3, knots=c(100000, 200000, 300000, 750000)), data=kc_data)
+kc.rs3 <- lm(price ~ bs(sqft_lot, degree=5, knots=c(100000, 200000, 300000)), data=kc_data)
 kc.rs3.pred <- predict(kc.rs3, newdata=list(sqft_lot=lot.grid), se=TRUE)
 kc.rs3.se <- cbind(kc.rs3.pred$fit + 2*kc.rs3.pred$se.fit,
                    kc.rs3.pred$fit - 2*kc.rs3.pred$se.fit)
-kc.rs4 <- lm(price ~ bs(sqft_lot, degree=5, knots=c(100000, 200000, 300000)), data=kc_data)
+kc.rs4 <- lm(price ~ bs(sqft_lot, degree=3, knots=c(100000, 200000, 300000, 75000)), data=kc_data)
 kc.rs4.pred <- predict(kc.rs4, newdata=list(sqft_lot=lot.grid), se=TRUE)
 kc.rs4.se <- cbind(kc.rs4.pred$fit + 2*kc.rs4.pred$se.fit,
                    kc.rs4.pred$fit - 2*kc.rs4.pred$se.fit)
 
-```
-```{r}
-lot.grid
 ```
 
 ```{r}
@@ -90,68 +90,63 @@ lines(lot.grid, kc.rs4.pred$fit, lwd=2, col="orange")
 
 
 ```
-The above graph shows four different regression splines for square footage of lot against price. All four models include knots at 100,000, 200,000 and 300,000 in order to get at the extra variability we see early on. The blue line includes those three knots at degree 3. The red line includes those three knots plus another knot at 10,000 to look at the variability extremely early on. The green line includes the originaly three knots and another at 750,000 to see the effect of the slightly different nature towards the end. Lastly the orange line has the original three knots at degree 5. We see that the lines follow fairly similar paths with slight difference related to the difference in creation. For example, the orange line sees much greater curvature due to its increased degree, then green line provides a slightly different shape towards the end then the red and blue lines because of the extra knot at 750,000.  
-
-```{r}
-## ALL OF THE CODE FROM HERE TO LINES DOES NOT WORK AT THE MOMENT
-kc.lor1 <- loess(price ~ sqft_lot, span=.2, data=kc_data_trial)
-kc.lor1.pred <- predict(kc.lor1, se=TRUE)
-kc.lor1.se <- cbind(kc.lor1.pred$fit + 2*kc.lor1.pred$se.fit,
-                    kc.lor1.pred$fit - 2*kc.lor1.pred$se.fit)
-
-```
-```{r}
-kc.lor1.pred.fit <-kc.lor1.pred$fit
-```
-
+The graph above illustrates four different possible regression splines for square footage of lot against price. All four models contain knots at 100,000, 200,000 and 300,000 in an effort to better explain the early variability. The blue line contains those three knots at degree 3. The red line contains those three knots as well as another early knot at 10,000, at degree 3 in an effort to sort out the variability we see extremely early on. The orange line adds a knot at the end of the blue model, at 750,000 to look at the differences at the higher levels. Lastly, the red line contains the blue model's knots at degree 5. We see that all four models seem to be fairly similar, but each has a slight difference based on the added portion to it. For example the orange is line is far more straight in the middle to end with it's knot at 750,000 and the green line has more curvature due to it's increased degree.
 ```{r}
 ## This code takes a long time to run. 
 kc.lor1 <- loess(price ~ sqft_lot, span=.2, data=kc_data)
-kc.lor1.pred <- predict(kc.lor1, se=TRUE)
+kc.lor1.pred <- predict(kc.lor1,newdata=data.frame(sqft_lot=lot.grid2), se=TRUE)
 kc.lor1.se <- cbind(kc.lor1.pred$fit + 2*kc.lor1.pred$se.fit,
                     kc.lor1.pred$fit - 2*kc.lor1.pred$se.fit)
 kc.lor2 <- loess(price ~ sqft_lot, span=.5, data=kc_data)
-kc.lor2.pred <- predict(kc.lor2, se=TRUE)
+kc.lor2.pred <- predict(kc.lor2,newdata=data.frame(sqft_lot=lot.grid2), se=TRUE)
 kc.lor2.se <- cbind(kc.lor2.pred$fit + 2*kc.lor2.pred$se.fit,
                     kc.lor2.pred$fit - 2*kc.lor2.pred$se.fit)
 kc.lor3 <- loess(price ~ sqft_lot, span=.7, data=kc_data)
-kc.lor3.pred <- predict(kc.lor3, se=TRUE)
+kc.lor3.pred <- predict(kc.lor3,newdata=data.frame(sqft_lot=lot.grid2), se=TRUE)
 kc.lor3.se <- cbind(kc.lor3.pred$fit + 2*kc.lor3.pred$se.fit,
                     kc.lor3.pred$fit - 2*kc.lor3.pred$se.fit)
-kc.lor4 <- loess(price ~ sqft_lot, span=.1, data=kc_data)
-kc.lor4.pred <- predict(kc.lor4, se=TRUE)
+kc.lor4 <- loess(price ~ sqft_lot, span=1, data=kc_data)
+kc.lor4.pred <- predict(kc.lor4,newdata=data.frame(sqft_lot=lot.grid2), se=TRUE)
 kc.lor4.se <- cbind(kc.lor4.pred$fit + 2*kc.lor4.pred$se.fit,
                     kc.lor4.pred$fit - 2*kc.lor4.pred$se.fit)
 ```
 
 ```{r}
-plot(kc_data$sqft_lot, kc_data$price, cex = .5, pch=19, col = 'darkgrey', xlab = 'Squarefoot Living', ylab='Price', xlim=lotlims)
+plot(kc_data$sqft_lot, kc_data$price, cex = .5, pch=19, col = 'darkgrey', xlab = 'Squarefoot Lot', ylab='Price', xlim=lotlims)
 title('Local Regression (Loess)', outer=F)
-lines(kc_data_trial$sqft_lot, kc.lor1.pred$fit , lwd=2, col="blue")
-
+lines(lot.grid2, kc.lor1.pred$fit, lwd=2, col="blue")
+lines(lot.grid2, kc.lor2.pred$fit, lwd=2, col="red")
+lines(lot.grid2, kc.lor3.pred$fit, lwd=2, col="green")
+lines(lot.grid2, kc.lor4.pred$fit, lwd=2, col="orange")
 
 ```
+The graph above shows another way to smooth our curve in a local regression method called Loess. The four lines predict on the same variables for the same values, but differ in the span for each curver. The blue curve has a span of .2, the red curve has a span of .5, the green curve has a span of .7, and the orange curve has a span of 1. The span effects the curve in that it dictates how many of the nearby points are used to predict the line, amongst those points the ones closest to it are given higher weights, and that is again dependent on the span. The smaller the span, the closer the points have to be to be considered in the local regression, and the lower the weight they are given. We see that he blue, orange, and red lines seem to fit the data fairly well, while the green line seems to be fairly off. This likely is because the points that were used for the local regression, particularly in the middle, caused a strange fit. The blue and red curve's use only the data right around each point to predict to it seems to fit the data well. The orange curve uses all of the data and runs the regression (though with weights) and also seems to fit alright. 
+
+Overall we would the blue Loess model to predict future values. We think it is important to have a low span so that you are only regressing using the points right around the point in question. This is especially true for this variable because the data does not have a clear functional form. That is also why we are not choosing to use regression splines because, again, there is not a clear functional form for the data, so doing a local regression seems more beneficial. 
 
 
 
-
-
-
-One aspect of our analysis we are particularly cognisant of is the fit of our model. Without an accurate fit, inferences made on the model are rather useless or are inaccurate. We are particularly concered about it because the shape of our model is not obvious. We have tried a few different things to ensure a good fit. First we have looked at the Lack of Fit test. This test is a nested F-Test that evaluates the fit of the model. Since it is a nested F-Test, it includes a full model and a reduced model. The full model is like a regular regression except instead of assuming linearity it looks at factor variables. By doing so, it looks at the mean value of Y for a particular level of X. This results in coefficients for each level of X. The reduced model is the model you wish to test, usually it is a linear model in which case the coefficients are the traditional $\beta$s which tell the slope of the variable. The null hypothesis of the test is that the model does fit and the alternative is that it does not fit. The test uses the same assumptions we use for linear regression, except that it does not require linearity as that is the subject of the test. Furthermore, the test is only useful when the X variables are categorical, in the sense that there are multiple observations at each level. In our case we have several variables like that and have included them in the test below. Note that sqft_living and sqft_lot are not treated as factor variables because they are continuous and do not have certain "levels" with multiple observations. 
+One factor that we are particularly cognisant of in our research is the fit of our model. Without an approriate fit the inference of our predictors is fairly meaningless and inaccurate. It is also important because the shape of our model is not necesarilly obvious. So we have decided to look at a few things to help us ensure an appropriate model. First, we have decided to look at the Lack of Fit test. This is an F-Test with the simple goal of evaluating fit. One of the convenient aspects of this test is that it does not require any additional assumptions then the one we have used to run our regressions as it is simply looking at two regressions. In fact, it does not even require linearity as that is what it is meant to test for. This test uses a nested F-test, so it is comprised of both a full model and a reduced model. The full model looks at a regression where instead of assuming a linear relationship it counts each variable as a factor variable, so it measure the mean Y at each level of a variable. In other words what is the average value of Y when X1=1. The reduced model is the regression you wish to test, normally one that assumes linearity and so we would have our normal $\beta$s telling us the slope of a predictor instead of giving as a value at each level of it. This model only works if the variables you are testing are categorical in this sense. There must be multiple observations at each level. Below we have run this test on our variables that fit these requirements. Note that sqft_living and sqft_lot are not run as factor variables because they are continuous and there are not multiple observations at each level. 
 ```{r}
 kc4.lm.full1<- lm(price ~ sqft_living + sqft_lot + factor(floors) + factor(waterfront) + factor(view) + factor(condition) + factor(grade) + factor(bedbath), data=kc_data_trial)
 kc4.lm.full2<- lm(log(price) ~ log(sqft_living) + log(sqft_lot) + factor(floors) + factor(waterfront) + factor(view) + factor(condition) + factor(grade) + factor(bedbath), data=kc_data_trial)
 kc4.lm.red1<- lm(price ~ sqft_living + sqft_lot + floors + waterfront + view + condition + grade + bedbath, data=kc_data_trial)
 kc4.lm.red2<- lm(log(price) ~ log(sqft_living) + log(sqft_lot) + floors + waterfront + view + log(condition) + grade + bedbath, data=kc_data_trial)
 anova(kc4.lm.full2,kc4.lm.red2)
-
 ```
-Here we have a p-value that is significantly lower than 1% so we reject the null, that is we reject that the model fits. Therefore linearity is not the correct way to represent these predictors. Below we have the output for the regression considering them as factor variables. 
+Here we find that we reject the null hypothesis, that the model fits, because our p-value is near 0, thus implying that the model does not fit. So instead of assuming a linear relationship with these stepped variables we will instead consider them as factor variables, finding the mean price at each given level, for example the mean price for a home with 5 beds and baths. The results for such a regression are shown below.
+
 ```{r}
 summary(kc4.lm.full2)
 ```
-Now we have a number of coefficients as we have one for each factor level. Or more accurately we one for each factor level minus one, as the base level for each predictor is incorporated into the intercept. For example the intercept includes condition = 1 and view = 0, the lowest levels for those respective variables. Some of the coefficients are significant and some are not. We find that waterfront and view are significant and positive at every level, which implies that a better view is associated with a higher price. For some, though, not every level is significant. For example, grade is only significant at the bottom three and top two levels (3, 4, and 5 and 12 and 13). This implies that grades 6 through 11 are associated with the same price, everything else being equal. So only if you have a really bad grade or a really good grade will it be associated with a different price. Similary condition is only significant at it's top two levels, implying that only houses in extraordinary condition will be associated with a benefit in price. Furthermore, for bedbath, we see that it is significant every few levels, which makes some sense. The difference between 5.25 and 5.5 bedbaths may be negligible, but between 4 and 6 matters. 
-
+Now we have significantly more coefficients as we have one for each factor level, or really we have one less than that as the intercept term contains all of the base factor levels, such as view=0 (not having a view) and grade=2 (the lowest grade in the data set). Some interesting notes are that grade is only significant for it's bottom three and final two (3,4,5 and 12 and 13), which implies that grades 6 through 11 all have the same effect on home price. So only when a home's grade is really high will it be important benefit in the price. Similarly condition is only significant for its two highest levels 4 and 5, so again only if the condition of a home is extraordinary will it be associated with a benefit in the sale price. when we look a the bedbath coefficients we can see them somewhat more like cutoffs. 5, 5.25, 5.5 etc are not necessarily significant but 6 is, so within a certain value for bedbath there is not necesarilly an extra benefit, though having more is generally better as at certain points it becomes significant. View we find significant at every level and has positive coefficients so each factor higher in view is associated with an increase in price. 
+```{r}
+kc_data_trial <- kc_data_trial %>% mutate(grade2 = grade^2)
+kc4.lm.full3<- lm(price ~ as.factor(grade), data=kc_data_trial)
+kc4.lm.red3<- lm(price ~ grade + grade2, data=kc_data_trial)
+anova(kc4.lm.red3,kc4.lm.full3)
+ggplot(data=kc_data, aes(x=factor(grade), y=lprice)) + stat_summary(fun.y="mean", geom="point")
+```
 
 Another way to check for fit as well as significanace is through added variable plots. The premise behind these plots is to see how and if an additional predictor matters when you consider the other predictors already included in the model. We are more interested in the how part of the added variable plot than the if. The plot gives us the ability to again help evaluate fit. We can see if the fit is linear or something else. Fit is extremely important for our model and any model, because if the model does not accurately represent the data then the inferences from it will be innaccurate. Our model fit is particularly important because it is not obviously linear as is, and to address that we have already made several transformations to the data. The plots show the residuals of one variale given that the other variables are in teh model. Each point is $e_i(Y|X_2+X_3+X_4) = Y_i - \hat{Y}(X_2) - \hat{Y}(X_3) - \hat{Y}(X_4)$ on the Y axis. On the X axis it is, $e_i(X_1|X_2+X_3+X_4) = X_{i1} - \hat{X_{i1}}(X_2) - \hat{X_{i1}}(X_3) - \hat{X_{i1}}(X_4)$ In order to get these points we are doing a regression so we do require the normal assumptions or technical conditions for a regression, normality and constant variance for error terms, independence and linearity. With our dataset being so large we are able to satisfy the normality condition and we have checked for the previous assumption earlier. 
 
@@ -165,7 +160,7 @@ avPlots(kc4.lm.red2, terms=~bedbath)
 
 ```
 
-Here we have several added variable plots for a few variables of interest. Since none of them have straight horizontal line we do see a relationship for all of them and therefore each one adds something to the plot. Floors and bedbath have some what negative relationships, when the other variables are considered in the model. While condition and grade have fairly significant postive relationships, when considering the other variables in the model. We also see the the lines themselves as well as the points seem to imply linear relationships, the lines are straight and the points are not mostly above or below the line at certain parts, rather they are even distributed at ever segement of the line. However, our analysis above suggests that the relationships are not linear but rather should be considered as factor variables, highlighting the difficulting in establishing fit. 
+Here we have several added variable plots for a few variables of interest. Since none of them have straight horizontal line we do see a relationship for all of them and therefore each one adds something to the plot. Floors and bedbath have some what negative relationships, when the other variables are considered in the model. While condition and grade have fairly significant postive relationships, when considering the other variables in the model. We also see the the lines themselves as well as the points seem to imply linear relationships, the lines are straight and the points are not mostly above or below the line at certain parts, rather they are even distributed at ever segement of the line. 
 ```{r}
 avPlots(lm(log(price) ~ sqft_living + log(sqft_lot) + floors + waterfront + view + log(condition) + grade + bedbath, data=kc_data_trial), terms=~sqft_living)
 ```
