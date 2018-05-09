@@ -30,6 +30,7 @@ kc_data.test <- kc_data[-dt,]
 Introduction:
 This study is based on a data set of home sales in King County, Washington from 2014 to 2015 (May) and comes from the Center for Spatial Data Science. The relevant variables are price, the sale price of the home; sqft_living, the square footage of living space; sqft_lot, the square footage of lot space; the number of floors; whether the property is watefront; the number of bedrooms/bathrooms, and the condition of the house (based on King County's grading system). From this data we are hoping to infer more about the general population of home sales in the U.S. As such specific variables like condition, will be extrapalated as roughly how much the structure of the house matters rather than the specific value because it is based on King County's system. The goal of this research is to figure out which factors are important in deciding the sale price of a home.  
 
+We run a ridge regression and lasso to compare coefficients with our MLR model. The two lists below show the RR and lasso coefficients, respectively.
 ```{r}
 lambda.grid <- 10^seq(5,-5, length=100)
 kc_4_Xdata <- kc_data.train[-c(1, 2, 3, 16, 17, 18, 19, 20, 21)]
@@ -42,10 +43,16 @@ kc_rr.cv<-cv.glmnet(kc_4_Xmatrix, log(kc_data.train$price), alpha=0, lambda=lamb
 coef(kc_rr.cv, s = "lambda.min")
 kc_lasso.cv<-cv.glmnet(kc_4_Xmatrix, log(kc_data.train$price), alpha=1, lambda=lambda.grid)
 coef(kc_lasso.cv, s = "lambda.min")
+
+```
+The ridge regression model suggests that we use all of the coefficients just as we would expect. The lasso model similarly suggests we use all of the variables which includes one more than we did in our own model. It suggests that we should include the amount of square footage in the basement, as well as the year the home was built. Note that the year built variable has been slightly adjusted so that 1900, the oldest home, is considered year 1 and then goes up normally from there. We then compare this with our full multiple linear regression model.
+
+```{r, echo=FALSE}
 kc_mlr.lm <- lm(log(price) ~  floors + waterfront + view + condition + grade + bedbath + log(sqft_living) + log(sqft_lot), data= kc_data.train)
 coef(kc_mlr.lm)
 ```
-The ridge regression model suggests that we use all of the coefficients just as we would expect. The lasso model similarly suggests we use all of the variables which includes one more than we did in our own model. It suggests that we should include the amount of square footage in the basement, as well as the year the home was built. Note that the year built variable is been slightly adjusted so that 1900, the oldest home, is considered year 1 and then goes up normally from there. All of the coefficients for predictors in all three models are the same across the model in terms of direction, though not necessarily in magnitude (but not great changes in magnitude either). Except for floors, which went from having a negative coefficient in our multiple linear regression model to a postive one in the lasso and ridge regression models. We originally did not include the variables added in these models for logistical reasons. First the amount of squarefootage in the basement was problematic because it did not include a way to qualify when the basement was finished or not. Furthermore for the year the house was built, some of the homes have had renovations, but we have no way of qualifying the quality or scale of renovations. And due to those problems we did not originally include those predictors.  
+
+All of the coefficients for predictors in all three models are the same across the model in terms of direction, though not necessarily in magnitude (but not great changes in magnitude either). Except for floors, which went from having a negative coefficient in our multiple linear regression model to a postive one in the lasso and ridge regression models. We originally did not include the variables added in these models for logistical reasons. First the amount of squarefootage in the basement was problematic because it did not include a way to qualify when the basement was finished or not. Furthermore for the year the house was built, some of the homes have had renovations, but we have no way of qualifying the quality or scale of renovations. And due to those problems we did not originally include those predictors.  
 
 ```{r}
 kc_4_Xdata.test <- kc_data.test[-c(1, 2, 3, 16, 17, 18, 19, 20, 21)]
@@ -99,7 +106,9 @@ lines(lot.grid, kc.rs4.pred$fit, lwd=2, col="orange")
 
 
 ```
-The graph above illustrates four different possible regression splines for square footage of lot against price. All four models contain knots at 100,000, 200,000 and 300,000 in an effort to better explain the early variability. The blue line contains those three knots at degree 3. The red line contains those three knots as well as another early knot at 10,000, at degree 3 in an effort to sort out the variability we see extremely early on. The orange line adds a knot at the end of the blue model, at 750,000 to look at the differences at the higher levels. Lastly, the red line contains the blue model's knots at degree 5. We see that all four models seem to be fairly similar, but each has a slight difference based on the added portion to it. For example the orange is line is far more straight in the middle to end with it's knot at 750,000 and the green line has more curvature due to it's increased degree.
+  
+The graph above illustrates four different possible regression splines for square footage of lot against price. All four models contain knots at 100,000, 200,000 and 300,000 in an effort to better explain the early variability. The blue line contains those three knots at degree 3. The red line contains those three knots as well as another early knot at 10,000, at degree 3 in an effort to sort out the variability we see extremely early on. The orange line adds a knot at the end of the blue model, at 750,000 to look at the differences at the higher levels. Lastly, the red line contains the blue model's knots at degree 5. We see that all four models seem to be fairly similar, but each has a slight difference based on the added portion to it. For example the orange is line is far more straight in the middle to end with it's knot at 750,000 and the green line has more curvature due to it's increased degree.  
+
 ```{r}
 ## This code takes a long time to run. 
 kc.lor1 <- loess(price ~ sqft_lot, span=.2, data=kc_data)
@@ -129,57 +138,80 @@ lines(lot.grid2, kc.lor3.pred$fit, lwd=2, col="green")
 lines(lot.grid2, kc.lor4.pred$fit, lwd=2, col="orange")
 
 ```
-The graph above shows another way to smooth our curve in a local regression method called Loess. The four lines predict on the same variables for the same values, but differ in the span for each curver. The blue curve has a span of .2, the red curve has a span of .5, the green curve has a span of .7, and the orange curve has a span of 1. The span effects the curve in that it dictates how many of the nearby points are used to predict the line, amongst those points the ones closest to it are given higher weights, and that is again dependent on the span. The smaller the span, the closer the points have to be to be considered in the local regression, and the lower the weight they are given. We see that he blue, orange, and red lines seem to fit the data fairly well, while the green line seems to be fairly off. This likely is because the points that were used for the local regression, particularly in the middle, caused a strange fit. The blue and red curve's use only the data right around each point to predict to it seems to fit the data well. The orange curve uses all of the data and runs the regression (though with weights) and also seems to fit alright. 
+The graph above shows another way to smooth our curve in a local regression method called Loess. The four lines predict on the same variables for the same values, but differ in the span for each curver. The blue curve has a span of .2, the red curve has a span of .5, the green curve has a span of .7, and the orange curve has a span of 1. The span effects the curve in that it dictates how many of the nearby points are used to predict the line, amongst those points the ones closest to it are given higher weights, and that is again dependent on the span. The smaller the span, the closer the points have to be to be considered in the local regression, and the lower the weight they are given. We see that he blue, orange, and red lines seem to fit the data fairly well, while the green line seems to be fairly off. This likely is because the points that were used for the local regression, particularly in the middle, caused a strange fit. The blue and red curve's use only the data right around each point to predict to it seems to fit the data well. The orange curve uses all of the data and runs the regression (though with weights) and also seems to fit alright.  
 
-Overall we would the blue Loess model to predict future values. We think it is important to have a low span so that you are only regressing using the points right around the point in question. This is especially true for this variable because the data does not have a clear functional form. That is also why we are not choosing to use regression splines because, again, there is not a clear functional form for the data, so doing a local regression seems more beneficial. 
+Overall we would the blue Loess model to predict future values. We think it is important to have a low span so that you are only regressing using the points right around the point in question. This is especially true for this variable because the data does not have a clear functional form. That is also why we are not choosing to use regression splines because, again, there is not a clear functional form for the data, so doing a local regression seems more beneficial.  
+
+##Conclusion
+Ridge regression and lasso yielded the results we were expecting. With the number of observations far outweighing the number of predictors, it was expected that the RR and lasso to find all variables significant to the model. However, due to the way the variables are constructed it makes more sense to use the MLR that was determined from the last part of the project. Further, given the type and number of variables we have, RR or lasso are solving a problem that is not present in the data.  
+
+LOESS and splines also yielded expeced results. Choosing the appropriate number and location of knots was an important determination, but ultimately the spline curves looked quite similar. Much more important was choosing the span of the LOESS, which made the smoothed curve vary widely. Overall, smooth regressions are much more appropriate for the kind of data we have compared with sparse models. Choosing an appropriate smooth regression function yielded curves that fit the data well.  
 
 
+##Added Variable Plots
+One factor that we are particularly cognisant of in our research is the fit of our model. Without an approriate fit the inference of our predictors is fairly meaningless and inaccurate. It is also important because the shape of our model is not necesarilly obvious. So we have decided to look at a few things to help us ensure an appropriate model. First, we decided to look at added varaible plots. The premise behind these plots is to see how and if an additional predictor matters when you consider the other predictors already included in the model. We are more interested in the how part of the added variable plot than the if. The plot gives us the ability to again help evaluate fit. We can see if the fit is linear or something else. Fit is extremely important for our model and any model, because if the model does not accurately represent the data then the inferences from it will be innaccurate. Our model fit is particularly important because it is not obviously linear as is, and to address that we have already made several transformations to the data. The plots show the residuals of one variale given that the other variables are in teh model. Each point is $e_i(Y|X_2+X_3+X_4) = Y_i - \hat{Y}(X_2) - \hat{Y}(X_3) - \hat{Y}(X_4)$ on the Y axis. On the X axis it is, $e_i(X_1|X_2+X_3+X_4) = X_{i1} - \hat{X_{i1}}(X_2) - \hat{X_{i1}}(X_3) - \hat{X_{i1}}(X_4)$ In order to get these points we are doing a regression so we do require the normal assumptions or technical conditions for a regression, normality and constant variance for error terms, independence and linearity. With our dataset being so large we are able to satisfy the normality condition and we have checked for the previous assumption earlier.  
 
-One factor that we are particularly cognisant of in our research is the fit of our model. Without an approriate fit the inference of our predictors is fairly meaningless and inaccurate. It is also important because the shape of our model is not necesarilly obvious. So we have decided to look at a few things to help us ensure an appropriate model. First, we have decided to look at the Lack of Fit test. This is an F-Test with the simple goal of evaluating fit. One of the convenient aspects of this test is that it does not require any additional assumptions then the one we have used to run our regressions as it is simply looking at two regressions. In fact, it does not even require linearity as that is what it is meant to test for. This test uses a nested F-test, so it is comprised of both a full model and a reduced model. The full model looks at a regression where instead of assuming a linear relationship it counts each variable as a factor variable, so it measure the mean Y at each level of a variable. In other words what is the average value of Y when X1=1. The reduced model is the regression you wish to test, normally one that assumes linearity and so we would have our normal $\beta$s telling us the slope of a predictor instead of giving as a value at each level of it. This model only works if the variables you are testing are categorical in this sense. There must be multiple observations at each level. Below we have run this test on our variables that fit these requirements. Note that sqft_living and sqft_lot are not run as factor variables because they are continuous and there are not multiple observations at each level. 
 ```{r}
 kc4.lm.full1<- lm(price ~ sqft_living + sqft_lot + factor(floors) + factor(waterfront) + factor(view) + factor(condition) + factor(grade) + factor(bedbath), data=kc_data.train)
 kc4.lm.full2<- lm(log(price) ~ log(sqft_living) + log(sqft_lot) + factor(floors) + factor(waterfront) + factor(view) + factor(condition) + factor(grade) + factor(as.integer(bedbath)), data=kc_data.train)
 kc4.lm.red1<- lm(price ~ sqft_living + sqft_lot + floors + waterfront + view + condition + grade + bedbath, data=kc_data.train)
 kc4.lm.red2<- lm(log(price) ~ log(sqft_living) + log(sqft_lot) + floors + waterfront + view + log(condition) + grade + bedbathi, data=kc_data.train)
-anova(kc4.lm.full2,kc4.lm.red2)
-```
-Here we find that we reject the null hypothesis, that the model fits, because our p-value is near 0, thus implying that the model does not fit. So instead of assuming a linear relationship with these stepped variables we will instead consider them as factor variables, finding the mean price at each given level, for example the mean price for a home with 5 beds and baths. The results for such a regression are shown below.
-
-```{r}
-summary(lm(log(price) ~ log(sqft_living) + log(sqft_lot) + factor(as.integer(floors)) + factor(waterfront) + factor(view) + factor(condition) + factor(grade) + factor(bedbathi), data=kc_data.train))
-```
-Now we have significantly more coefficients as we have one for each factor level, or really we have one less than that as the intercept term contains all of the base factor levels, such as view=0 (not having a view) and grade=2 (the lowest grade in the data set). Some interesting notes are that grade is only significant for it's bottom three and final two (3,4,5 and 12 and 13), which implies that grades 6 through 11 all have the same effect on home price. So only when a home's grade is really high will it be important benefit in the price. Similarly condition is only significant for its two highest levels 4 and 5, so again only if the condition of a home is extraordinary will it be associated with a benefit in the sale price. when we look a the bedbath coefficients we can see them somewhat more like cutoffs. 5, 5.25, 5.5 etc are not necessarily significant but 6 is, so within a certain value for bedbath there is not necesarilly an extra benefit, though having more is generally better as at certain points it becomes significant. View we find significant at every level and has positive coefficients so each factor higher in view is associated with an increase in price. 
-
-Another way to check for fit as well as significanace is through added variable plots. The premise behind these plots is to see how and if an additional predictor matters when you consider the other predictors already included in the model. We are more interested in the how part of the added variable plot than the if. The plot gives us the ability to again help evaluate fit. We can see if the fit is linear or something else. Fit is extremely important for our model and any model, because if the model does not accurately represent the data then the inferences from it will be innaccurate. Our model fit is particularly important because it is not obviously linear as is, and to address that we have already made several transformations to the data. The plots show the residuals of one variale given that the other variables are in teh model. Each point is $e_i(Y|X_2+X_3+X_4) = Y_i - \hat{Y}(X_2) - \hat{Y}(X_3) - \hat{Y}(X_4)$ on the Y axis. On the X axis it is, $e_i(X_1|X_2+X_3+X_4) = X_{i1} - \hat{X_{i1}}(X_2) - \hat{X_{i1}}(X_3) - \hat{X_{i1}}(X_4)$ In order to get these points we are doing a regression so we do require the normal assumptions or technical conditions for a regression, normality and constant variance for error terms, independence and linearity. With our dataset being so large we are able to satisfy the normality condition and we have checked for the previous assumption earlier. 
-
-```{r}
-
 require(car)
 avPlots(kc4.lm.red2, terms=~floors)
 avPlots(kc4.lm.red2, terms=~log(condition))
 avPlots(kc4.lm.red2, terms=~grade)
 avPlots(kc4.lm.red2, terms=~bedbathi)
-
 ```
 
-Here we have several added variable plots for a few variables of interest. Since none of them have straight horizontal line we do see a relationship for all of them and therefore each one adds something to the plot. Floors and bedbath have some what negative relationships, when the other variables are considered in the model. While condition and grade have fairly significant postive relationships, when considering the other variables in the model. We also see the the lines themselves as well as the points seem to imply linear relationships, the lines are straight and the points are not mostly above or below the line at certain parts, rather they are even distributed at ever segement of the line. 
+Here we have several added variable plots for a few variables of interest. Since none of them have a horizontal line we do see a relationship for all of them and therefore each one adds something to the plot. Floors and bedbath have some what negative relationships, when the other variables are considered in the model. While condition and grade have fairly significant postive relationships, when considering the other variables in the model. We also see the the lines themselves as well as the points seem to imply linear relationships, the lines are straight and the points are not mostly above or below the line at certain parts, rather they are even distributed at ever segement of the line. 
 ```{r}
-avPlots(lm(log(price) ~ sqft_living + log(sqft_lot) + floors + waterfront + view + log(condition) + grade + bedbath, data=kc_data_train), terms=~sqft_living)
+avPlots(lm(log(price) ~ sqft_living + log(sqft_lot) + floors + waterfront + view + log(condition) + grade + bedbath, data=kc_data.train), terms=~sqft_living)
 ```
-Here we have a graph that all parts of the model included except for sqft_living, which we are looking at without a transformation. We do see that the line is straight, but the points are not as evenly distributed as we have seen the in past. Earlier and later on it seems more points are below and in the middle more are above. The curvature implies we should use a transformation, which we have done.  
+Here we have a graph with all parts of the model included except for sqft_living, which we are looking at without a transformation. We do see that the line is straight, but the points are not as evenly distributed as we have seen the in past. Earlier and later on it seems more points are below and in the middle more are above. The curvature implies we should use a transformation, which we have done. These graphs are fairly hard to read since they include all of the data in the training set, so we have decided to include another method to more accurately and directly evaluate fit.  
 
+##Lack of Fit
 
+We decided to look at the Lack of Fit test. This is an F-Test with the simple goal of evaluating fit. One of the convenient aspects of this test is that it does not require any additional assumptions then the one we have used to run our regressions as it is simply looking at two regressions. In fact, it does not even require linearity as that is what it is meant to test for. This test uses a nested F-test, so it is comprised of both a full model and a reduced model. The full model looks at a regression where instead of assuming a linear relationship it counts each variable as a factor variable, so it measures the mean Y at each level of a variable. In other words what is the average value of Y when X1=1. The reduced model is the regression you wish to test, normally one that assumes linearity and so we would have our normal $\beta$s telling us the slope of a predictor instead of giving as a value at each level of it. This model only works if the variables you are testing are categorical in this sense. There must be multiple observations at each level. Below we have run this test on our variables that fit these requirements. Note that sqft_living and sqft_lot are not run as factor variables because they are continuous and there are not multiple observations at each level.  
 
 ```{r}
+anova(kc4.lm.full2,kc4.lm.red2)
+```
+Here we find that we reject the null hypothesis, that the model fits, because our p-value is near 0, thus implying that the model does not fit. So instead of assuming a linear relationship with these stepped variables we will instead consider them as factor variables, finding the mean price at each given level, for example the mean price for a home with 5 beds and baths. The results for such a regression are shown below.  
+
+```{r}
+summary(lm(log(price) ~ log(sqft_living) + log(sqft_lot) + factor(as.integer(floors)) + factor(waterfront) + factor(view) + factor(condition) + factor(grade) + factor(bedbathi), data=kc_data.train))
+```
+Now we have significantly more coefficients as we have one for each factor level, or really we have one less than that as the intercept term contains all of the base factor levels, such as view=0 (not having a view) and grade=2 (the lowest grade in the data set). Some interesting notes are that grade is only significant for it's bottom three and final two (3,4,5 and 12 and 13), which implies that grades 6 through 11 all have the same effect on home price. So only when a home's grade is really high will it be important benefit in the price. Similarly condition is only significant for its two highest levels 4 and 5, so again only if the condition of a home is extraordinary will it be associated with a benefit in the sale price. when we look a the bedbath coefficients we can see them somewhat more like cutoffs. 6 is not necessarily significant but 7 is, so within a certain value for bedbath there is not necessarily an extra benefit, though having more is generally better as at certain points it becomes significant. View we find significant at every level and has positive coefficients so each factor higher in view is associated with an increase in price. This regresion provides a fairly good fit since we are only looking at specific factor levels, but having so many coefficients is not always helpful and we may instead want to look for some functional form for these variables so we have also decdided to look at Generalized Additive Models. 
+
+
+##Generalized Additive Model
+Generalized Additive Models help us get around problems of functional form. It is hard to tell what the form of each variable is specifically, but the GAM does not require us to pick a specific form (like linear) instead it uses unknown smooth functions. The GAM is of the form $g(E(Y)) = \beta_0 + f_1(x_1) + f_2(x_2) + f_3(x_3) + ... + . f_p(x_p)$ where $g$ is some link function, in our case that will  be a log function for price, $\beta_0$ is the intercept and $f_i$ is the functional form for each predictor $x_i$. These functional forms can range from parametric to non-parametric. This allowance for smoother functions lets us deal with our data that is not clearly linear, but still allows us to define some functional form to it so that we can see an overall realationship. GAMs hold the same assumption as our normal linear models, except they relax two of them. First, and most obviously, is the need to use defined functional forms instead allowing us to using potentially non-parametric smoothers. Second, GAMs also have the flexibility to permit the use non-normal error distributions In our regression below we have used splines not unlike the ones we used above. 
+
+
+```{r, echo=FALSE}
 require(gam)
-kc.gam <- gam(log(price) ~ log(sqft_living) + log(sqft_lot) + as.integer(floors) + waterfront + factor(view) + s(condition, df=6) + s(grade,df=6) + s(bedbath, df=6), data=kc_data.train)
+kc.gam <- gam(log(price) ~ s(sqft_living, df=6) + s(sqft_lot, df=6) + as.integer(floors) + waterfront + s(view, df=6) + s(condition, df=6) + s(grade,df=6) + s(bedbath, df=6), data=kc_data.train)
 summary(kc.gam)
-AIC(kc_mlr.lm)
-AIC(kc.gam)
+
+```
+The summary of the model above illustrates one of the major trade offs you make using GAMs, which is a loss of interpretation. We no longer have clear coefficients that illustrate the  effect of each variable. Instead we have a series of F-tests showing that each individual predictor, in its form, is importantant to the model as they are all statistically significant at a .1% level. However, it is somewhat hard to tell what that effect is. Here we have used splines with six degrees of freedom for every varaiable, except floors and waterfront. That is because floors has only three levels 1, 2, and 3 floors, so a spline could not be created with such few levels and waterfront only has values of 0 or 1 so it does not make sense to use a spline as it simply turns "on" or "off". In order to better understand the effects of each predictor we have graphed the functions from the regression below.
+
+
+```{r} 
 par(mfrow=c(1,3))
-plot(kc.gam,se = TRUE) 
+plot(kc.gam,se = TRUE, terms = s(sqft_living, df=6) + s(sqft_lot, df=6) + s(view, df=6) + s(condition, df=6) + s(grade,df=6) + s(bedbath, df=6))
+
+```
+
+Now we can get at least some interpretation of the effect of each variable. We don't have specific coefficients, but we do have graphs. We can see that increasing the square footage of living space is always associated with a positive bump in price, but begins to taper off after awhile
+
+
+
+```{r}
 plot(log(kc_data.test$price), predict(kc_mlr.lm, newdata=kc_data.test), type="p")
 points(log(kc_data.test$price), predict(kc.gam, newdata=kc_data.test), col="red")
+AIC(kc_mlr.lm)
+AIC(kc.gam)
 
 
 ```

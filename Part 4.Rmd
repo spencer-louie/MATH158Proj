@@ -43,7 +43,7 @@ kc_lasso.cv<-cv.glmnet(kc_4_Xmatrix, log(kc_data$price), alpha=1, lambda=lambda.
 coef(kc_lasso.cv, s = "lambda.min")
 ```
 
-The ridge regression model suggests that we use all of the coefficients just as we would expect. The lasso model similarly suggests we use all of the variables which includes one more than we did in our own model. It suggests that we should include the amount of square footage in the basement, as well as the year the home was built. Note that the year built variable is been slightly adjusted so that 1900, the oldest home, is considered year 1 and then goes up normally from there. We then compare this with our full multiple linear regression model.
+The ridge regression model suggests that we use all of the coefficients just as we would expect. The lasso model similarly suggests we use all of the variables which includes one more than we did in our own model. It suggests that we should include the amount of square footage in the basement, as well as the year the home was built. Note that the year built variable has been slightly adjusted so that 1900, the oldest home, is considered year 1 and then goes up normally from there. We then compare this with our full multiple linear regression model.
 
 ```{r, echo=FALSE}
 kc_mlr.lm <- lm(log(price) ~  floors + waterfront + view + condition + grade + bedbath + log(sqft_living) + log(sqft_lot), data= kc_data)
