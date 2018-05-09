@@ -28,7 +28,7 @@ kc_data<- kc_data %>% mutate(bedbathi = round(bedbath, digits=0))
 This study is based on a data set of home sales in King County, Washington from 2014 to 2015 (May) and comes from the Center for Spatial Data Science. The relevant variables are price, the sale price of the home; sqft_living, the square footage of living space; sqft_lot, the square footage of lot space; the number of floors; whether the property is watefront; the number of bedrooms/bathrooms, and the condition of the house (based on King County's grading system). From this data we are hoping to infer more about the general population of home sales in the U.S. As such specific variables like condition, will be extrapolated as roughly how much the structure of the house matters rather than the specific value because it is based on King County's system. The goal of this research is to figure out which factors are important in deciding the sale price of a home.  
 
 ##Ridge Regresion & Lasso Models
-We run a ridge regression and lasso  
+We run a ridge regression and lasso to compare coefficients with our MLR model. The two lists below show the RR and lasso coefficients, respectively.
 ```{r, echo=FALSE}
 lambda.grid <- 10^seq(5,-5, length=100)
 kc_4_Xdata <- kc_data[-c(1, 2, 3, 16, 17, 18, 19, 20, 21)]
@@ -41,10 +41,16 @@ kc_rr.cv<-cv.glmnet(kc_4_Xmatrix, log(kc_data$price), alpha=0, lambda=lambda.gri
 coef(kc_rr.cv, s = "lambda.min")
 kc_lasso.cv<-cv.glmnet(kc_4_Xmatrix, log(kc_data$price), alpha=1, lambda=lambda.grid)
 coef(kc_lasso.cv, s = "lambda.min")
+```
+
+The ridge regression model suggests that we use all of the coefficients just as we would expect. The lasso model similarly suggests we use all of the variables which includes one more than we did in our own model. It suggests that we should include the amount of square footage in the basement, as well as the year the home was built. Note that the year built variable is been slightly adjusted so that 1900, the oldest home, is considered year 1 and then goes up normally from there. We then compare this with our full multiple linear regression model.
+
+```{r, echo=FALSE}
 kc_mlr.lm <- lm(log(price) ~  floors + waterfront + view + condition + grade + bedbath + log(sqft_living) + log(sqft_lot), data= kc_data)
 coef(kc_mlr.lm)
 ```
-The ridge regression model suggests that we use all of the coefficients just as we would expect. The lasso model similarly suggests we use all of the variables which includes one more than we did in our own model. It suggests that we should include the amount of square footage in the basement, as well as the year the home was built. Note that the year built variable is been slightly adjusted so that 1900, the oldest home, is considered year 1 and then goes up normally from there. All of the coefficients for predictors in all three models are the same across the model in terms of direction, though not necessarily in magnitude (but not great changes in magnitude either). Except for floors, which went from having a negative coefficient in our multiple linear regression model to a postive one in the lasso and ridge regression models. We originally did not include the variables added in these models for logistical reasons. First the amount of squarefootage in the basement was problematic because it did not include a way to qualify when the basement was finished or not. Furthermore for the year the house was built, some of the homes have had renovations, but we have no way of qualifying the quality or scale of renovations. And due to those problems we did not originally include those predictors.  
+
+All of the coefficients for predictors in all three models are the same across the model in terms of direction, though not necessarily in magnitude (but not great changes in magnitude either). Except for floors, which went from having a negative coefficient in our multiple linear regression model to a postive one in the lasso and ridge regression models. We originally did not include the variables added in these models for logistical reasons. First the amount of squarefootage in the basement was problematic because it did not include a way to qualify when the basement was finished or not. Furthermore for the year the house was built, some of the homes have had renovations, but we have no way of qualifying the quality or scale of renovations. And due to those problems we did not originally include those predictors.  
 
 ```{r, echo=FALSE}
 plot(log(kc_data$price), fitted(kc_mlr.lm), type="p")
@@ -55,7 +61,7 @@ points(log(kc_data$price), predict(kc_lasso.cv, newx=kc_4_Xmatrix, s= "lambda.mi
 
 This graph shows the true values of the log of price on the x axis and the fitted values for each of the regression types on the y axis. Ideally we would a one-to-one relationship or a slope of 1 (although admittedly that could mean overfitting, which would be problematic). In black are multiple linear regression values, in blue are the ridge regression values and in red are the lasso values. The lasso and ridge regression models are very similar as you can see in the table with their coefficients, so in most places they are just overtop of each other. The black multiple linear regression points are also quite close to their blue/red counterparts implying that the models predict fairly similarly. Overall we have decided to stick with our originally multiple linear regression model because we are warry of the two logical reasons for excluding the two added variables in ridge regression and lasso and including them may cause some kind of unintended bias. 
 
-
+##Spline & Kernel Smoother
 ```{r, echo=FALSE}
 lotlims <- range(kc_data$sqft_lot)
 lot.grid <-seq(from=lotlims[1], to=lotlims[2])
@@ -92,6 +98,7 @@ lines(lot.grid, kc.rs4.pred$fit, lwd=2, col="orange")
 
 
 ```
+
 The graph above illustrates four different possible regression splines for square footage of lot against price. All four models contain knots at 100,000, 200,000 and 300,000 in an effort to better explain the early variability. The blue line contains those three knots at degree 3. The red line contains those three knots as well as another early knot at 10,000, at degree 3 in an effort to sort out the variability we see extremely early on. The orange line adds a knot at the end of the blue model, at 750,000 to look at the differences at the higher levels. Lastly, the red line contains the blue model's knots at degree 5. We see that all four models seem to be fairly similar, but each has a slight difference based on the added portion to it. For example the orange is line is far more straight in the middle to end with it's knot at 750,000 and the green line has more curvature due to it's increased degree.
 ```{r, echo=FALSE}
 ## This code takes a long time to run. 
@@ -122,9 +129,15 @@ lines(lot.grid2, kc.lor3.pred$fit, lwd=2, col="green")
 lines(lot.grid2, kc.lor4.pred$fit, lwd=2, col="orange")
 
 ```
+
 The graph above shows another way to smooth our curve in a local regression method called Loess. The four lines predict on the same variables for the same values, but differ in the span for each curver. The blue curve has a span of .2, the red curve has a span of .5, the green curve has a span of .7, and the orange curve has a span of 1. The span effects the curve in that it dictates how many of the nearby points are used to predict the line, amongst those points the ones closest to it are given higher weights, and that is again dependent on the span. The smaller the span, the closer the points have to be to be considered in the local regression, and the lower the weight they are given. We see that he blue, orange, and red lines seem to fit the data fairly well, while the green line seems to be fairly off. This likely is because the points that were used for the local regression, particularly in the middle, caused a strange fit. The blue and red curve's use only the data right around each point to predict to it seems to fit the data well. The orange curve uses all of the data and runs the regression (though with weights) and also seems to fit alright. 
 
 Overall we would the blue Loess model to predict future values. We think it is important to have a low span so that you are only regressing using the points right around the point in question. This is especially true for this variable because the data does not have a clear functional form. That is also why we are not choosing to use regression splines because, again, there is not a clear functional form for the data, so doing a local regression seems more beneficial. 
+
+##Conclusion
+Ridge regression and lasso yielded the results we were expecting. With the number of observations far outweighing the number of predictors, it was expected that the RR and lasso to find all variables significant to the model. However, due to the way the variables are constructed it makes more sense to use the MLR that was determined from the last part of the project. Further, given the type and number of variables we have, RR or lasso are solving a problem that is not present in the data.
+
+LOESS and splines also yielded expeced results. Choosing the appropriate number and location of knots was an important determination, but ultimately the spline curves looked quite similar. Much more important was choosing the span of the LOESS, which made the smoothed curve vary widely. Overall, smooth regressions are much more appropriate for the kind of data we have compared with sparse models. Choosing an appropriate smooth regression function yielded curves that fit the data well. 
 
 ##Lack of Fit
 
@@ -158,7 +171,7 @@ require(car)
 avPlots(kc4.lm.red2, terms=~floors)
 avPlots(kc4.lm.red2, terms=~log(condition))
 avPlots(kc4.lm.red2, terms=~grade)
-avPlots(kc4.lm.red2, terms=~bedbath)
+#avPlots(kc4.lm.red2, terms=~bedbath)
 
 ```
 
@@ -168,8 +181,8 @@ avPlots(lm(log(price) ~ sqft_living + log(sqft_lot) + floors + waterfront + view
 ```
 Here we have a graph that all parts of the model included except for sqft_living, which we are looking at without a transformation. We do see that the line is straight, but the points are not as evenly distributed as we have seen the in past. Earlier and later on it seems more points are below and in the middle more are above. The curvature implies we should use a transformation, which we have done.  
 
-#Generalized Additive Model
+##Generalized Additive Model
 
 
-##Conclusion
+##Overall Summary
 
